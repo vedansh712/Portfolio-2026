@@ -1,0 +1,244 @@
+VEDANSH Portfolio — Complete Project Report
+============================================
+
+Last Updated: February 28, 2026  
+Project Name: vedansh-info  
+Project Type: Personal Developer Portfolio Website  
+Status: In Development (Dev server running)
+
+-------------------------------------------------------------------------------
+
+1. Project Overview
+-------------------
+
+This is a personal portfolio website designed to showcase a developer's identity, 
+skills, experience, projects, and contact information. The entire website is 
+styled like a retro Bloomberg Terminal / CRT Monitor — giving it a unique, 
+hacker-aesthetic visual identity that makes it stand out from typical portfolio 
+websites.
+
+The site has two design variants (two pages):
+1. "/" (Root page) — "Bloomberg Amber Terminal" — A retro amber-on-black CRT TV 
+   style, with a worn TV bezel effect, scanlines, and phosphor glow.
+2. "/new" page — "Modern Dark Terminal" — A sleek, modern dark terminal style 
+   with a macOS-like window chrome (traffic lights), color-coded skill tags, 
+   and a cleaner aesthetic.
+
+Both pages display the same core information but with completely different 
+visual styles.
+
+-------------------------------------------------------------------------------
+
+2. Tech Stack
+-------------
+
+Category         | Technology                   | Version
+-----------------|------------------------------|----------
+Framework        | Next.js (App Router)         | 16.1.6
+Language         | TypeScript                   | ^5
+UI Library       | React                        | 19.2.3
+Styling          | Tailwind CSS                 | ^4
+CSS Processing   | PostCSS                      | ^4
+Animation        | Motion (Framer Motion)       | ^12.3
+Font             | JetBrains Mono, Inter        | Google Fonts
+Linting          | ESLint                       | ^9
+Package Manager  | npm / pnpm                   | -
+
+-------------------------------------------------------------------------------
+
+3. File Structure — Complete Breakdown
+--------------------------------------
+
+vidansh-info-website/
+│
+├── package.json              # Project metadata, scripts & dependencies
+├── package-lock.json          # npm dependency lock file
+├── pnpm-lock.yaml            # pnpm dependency lock file (alternative)
+├── pnpm-workspace.yaml       # pnpm workspace config
+├── next.config.ts            # Next.js configuration
+├── tsconfig.json             # TypeScript compiler options
+├── eslint.config.mjs         # ESLint configuration
+├── postcss.config.mjs        # PostCSS config (Tailwind CSS plugin)
+├── .gitignore                # Files/folders excluded from Git
+├── README.md                 # Project readme
+├── next-env.d.ts             # Next.js TypeScript declarations
+│
+├── app/                      # MAIN APPLICATION CODE
+│   ├── layout.tsx            # Root layout — HTML shell, metadata, global CSS
+│   ├── globals.css           # Global styles
+│   ├── favicon.ico           # Browser tab icon
+│   ├── page.tsx              # HOME PAGE — Bloomberg Amber Terminal design
+│   └── new/
+│       └── page.tsx          # ALTERNATE PAGE — Modern Dark Terminal design
+│
+├── public/                   # Static assets (SVG icons)
+│
+├── .next/                    # Build output (auto-generated)
+├── node_modules/             # Dependencies (auto-installed)
+└── .git/                     # Git version control
+
+-------------------------------------------------------------------------------
+
+4. File-by-File Explanation
+---------------------------
+
+4.1 Configuration Files
+
+package.json:
+- Defines the project name, version, and dependencies.
+- Scripts: dev (start dev server), build (production build), start, lint.
+
+next.config.ts:
+- Framework configuration (currently default).
+
+tsconfig.json:
+- TypeScript setup (target ES2017, strict mode, aliases).
+
+eslint.config.mjs:
+- Linting rules for Core Web Vitals and TypeScript.
+
+postcss.config.mjs:
+- Configures Tailwind CSS processing.
+
+.gitignore:
+- Standard exclusions (node_modules, .next, etc).
+
+4.2 Application Code
+
+app/layout.tsx:
+- Sets the page title ("Vedant Sharma — Developer") and meta description.
+- Loads global fonts and CSS.
+
+app/globals.css:
+- Base colors (#080400 / #ff9500), hides scrollbars, sets selection styles.
+
+app/page.tsx (Amber Terminal):
+- Creates the CRT TV effect with layered shadows and gradients.
+- Horizontal ticker for skills.
+- Live clock updates every second.
+- Hardcoded about, experience, and project data.
+
+app/new/page.tsx (Modern Terminal):
+- Dark blue-black theme (#0a0a10).
+- Skill tags with colored indicator dots.
+- Animated sparklines for activity stats.
+
+-------------------------------------------------------------------------------
+
+5. Design System
+----------------
+
+Color Palette:
+- Amber Terminal: #080400 (BG), #ff9500 (Text)
+- Modern Terminal: #0a0a10 (BG), #ffffff (Text), Cyan/Emerald/Rose accents
+
+Typography:
+- JetBrains Mono (monospaced) for terminal feel.
+- Inter (sans-serif) for cleaner modern UI elements.
+- Information density: Small font sizes (9px-12px).
+
+Animations:
+- Staggered entry fades for panels.
+- Continuous skill ticker scroll.
+- Pulse effects for online indicators.
+
+-------------------------------------------------------------------------------
+
+6. Architecture
+---------------
+
+- Uses Next.js 16 App Router.
+- Content is strictly client-side ("use client").
+- Zero external APIs or databases (static components).
+- Motion/Framer Motion for all UI transitions.
+
+-------------------------------------------------------------------------------
+
+7. How to Run
+-------------
+
+1. cd vidansh-info-website
+2. npm install
+3. npm run dev
+4. Open http://localhost:3000
+
+-------------------------------------------------------------------------------
+
+8. Placeholder Data (Action Items)
+----------------------------------
+
+The following items currently contain DUMMY DATA and must be updated:
+- Name: Change "VEDANSH" to your name.
+- Title: Update your job title.
+- Bio/About: Rewrite with your actual story.
+- Experience: Replace fake companies with your work history.
+- Skills: List your actual tech stack.
+- Projects: Add your real GitHub/Portfolio projects.
+- Contact: Update Email, GitHub, LinkedIn URLs.
+- Stats: Update commit/repo counts or remove them.
+- Miloestones: Update the "LOG" section with real events.
+
+-------------------------------------------------------------------------------
+
+9. QUESTIONNAIRE — Fill your info here
+--------------------------------------
+
+SECTION A: IDENTITY
+A1. Full Name: ___
+A2. Display Name: ___
+A3. Professional Title: ___
+A4. One-line Tagline: ___
+A5. About Me (2-4 sentences): ___
+
+SECTION B: DETAILS
+B1. Location (City/Country): ___
+B2. Education: ___
+B3. Current Status: ___
+B4. Main Tech Focus: ___
+
+SECTION C: EXPERIENCE
+Job 1: Title: ___, Company: ___, Period: ___, Current: ___
+Job 2: Title: ___, Company: ___, Period: ___, Current: ___
+Job 3: Title: ___, Company: ___, Period: ___, Current: ___
+
+SECTION D: SKILLS
+D1. Languages: ___
+D2. Frontend: ___
+D3. Backend: ___
+D4. Databases: ___
+D5. Cloud/DevOps: ___
+
+SECTION E: PROJECTS
+Project 1: Name: ___, Desc: ___, Status: ___, Link: ___
+Project 2: Name: ___, Desc: ___, Status: ___, Link: ___
+Project 3: Name: ___, Desc: ___, Status: ___, Link: ___
+
+SECTION F: CONTACT
+F1. Email: ___
+F2. GitHub URL: ___
+F3. LinkedIn URL: ___
+F4. Twitter/X: ___
+F5. Preferred Contact: ___
+
+SECTION G: SETUP
+G1. Shell: ___
+G2. Editor: ___
+G3. Terminal: ___
+G4. OS: ___
+
+SECTION H: STATS & LOGS
+H1. Repo Count: ___
+H2. Monthly Commits: ___
+H3. Milestones (Log entries):
+    - ___
+    - ___
+    - ___
+
+SECTION I: PREFERENCES
+I1. Preferred Design (Amber / Modern / Both): ___
+I2. Add Profile Photo? (Yes/No): ___
+I3. Custom Changes?: ___
+
+-------------------------------------------------------------------------------
+INSTRUCTIONS: Answer the questions above and send them back to me. 
+I will then update the entire website with your information!

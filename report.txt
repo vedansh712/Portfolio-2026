@@ -1,31 +1,28 @@
 VEDANSH Portfolio — Complete Project Report
 ============================================
 
-Last Updated: February 28, 2026  
+Last Updated: March 01, 2026  
 Project Name: vedansh-info  
+Developer: Vedansh Sharma
 Project Type: Personal Developer Portfolio Website  
-Status: In Development (Dev server running)
+Status: MVP COMPLETED (Responsive + Real Data + Interactive + Activity Feed)
 
 -------------------------------------------------------------------------------
 
 1. Project Overview
 -------------------
 
-This is a personal portfolio website designed to showcase a developer's identity, 
-skills, experience, projects, and contact information. The entire website is 
-styled like a retro Bloomberg Terminal / CRT Monitor — giving it a unique, 
-hacker-aesthetic visual identity that makes it stand out from typical portfolio 
-websites.
+This is a premium personal portfolio website designed to showcase Vedansh Sharma's identity, 
+skills, experience, projects, and contact information. The website features two distinct
+visual paradigms:
 
-The site has two design variants (two pages):
-1. "/" (Root page) — "Bloomberg Amber Terminal" — A retro amber-on-black CRT TV 
-   style, with a worn TV bezel effect, scanlines, and phosphor glow.
-2. "/new" page — "Modern Dark Terminal" — A sleek, modern dark terminal style 
-   with a macOS-like window chrome (traffic lights), color-coded skill tags, 
-   and a cleaner aesthetic.
+1. "/" (Root page) — "Bloomberg Amber Terminal" — A high-fidelity retro CRT TV 
+   aesthetic with phosphor glow, scanlines, and a worn plastic bezel.
+2. "/new" page — "Modern Dark Terminal" — A sleek, modern developer-centric 
+   terminal with macOS-style chrome and glowing accent tags.
 
-Both pages display the same core information but with completely different 
-visual styles.
+Both variants are fully responsive and populated with real professional data 
+bridging Mechanical Engineering roots with Full Stack Development expertise.
 
 -------------------------------------------------------------------------------
 
@@ -41,8 +38,8 @@ Styling          | Tailwind CSS                 | ^4
 CSS Processing   | PostCSS                      | ^4
 Animation        | Motion (Framer Motion)       | ^12.3
 Font             | JetBrains Mono, Inter        | Google Fonts
-Linting          | ESLint                       | ^9
-Package Manager  | npm / pnpm                   | -
+Icons            | Unicode/Emoji + SVG         | -
+Deployment       | Local Dev (Ready for Vercel)| -
 
 -------------------------------------------------------------------------------
 
@@ -51,77 +48,64 @@ Package Manager  | npm / pnpm                   | -
 
 vidansh-info-website/
 │
-├── package.json              # Project metadata, scripts & dependencies
-├── package-lock.json          # npm dependency lock file
-├── pnpm-lock.yaml            # pnpm dependency lock file (alternative)
-├── pnpm-workspace.yaml       # pnpm workspace config
-├── next.config.ts            # Next.js configuration
-├── tsconfig.json             # TypeScript compiler options
-├── eslint.config.mjs         # ESLint configuration
-├── postcss.config.mjs        # PostCSS config (Tailwind CSS plugin)
-├── .gitignore                # Files/folders excluded from Git
-├── README.md                 # Project readme
-├── next-env.d.ts             # Next.js TypeScript declarations
-│
-├── app/                      # MAIN APPLICATION CODE
-│   ├── layout.tsx            # Root layout — HTML shell, metadata, global CSS
-│   ├── globals.css           # Global styles
-│   ├── favicon.ico           # Browser tab icon
-│   ├── page.tsx              # HOME PAGE — Bloomberg Amber Terminal design
-│   └── new/
-│       └── page.tsx          # ALTERNATE PAGE — Modern Dark Terminal design
-│
-├── public/                   # Static assets (SVG icons)
-│
-├── .next/                    # Build output (auto-generated)
-├── node_modules/             # Dependencies (auto-installed)
-└── .git/                     # Git version control
+├── package.json              # Dependencies & Scripts
+├── next.config.ts            # Next.js Site Config
+├── tsconfig.json             # TypeScript Config
+├── postcss.config.mjs        # Tailwind 4 Config
+├── app/                      
+│   ├── layout.tsx            # Global metadata (Vedansh Sharma) & HTML shell
+│   ├── globals.css           # Global colors & Mobile scroll handling
+│   ├── page.tsx              # ROOT PAGE — Retro CRT Amber Terminal
+│   ├── new/
+│   │   └── page.tsx          # ALTERNATE — Modern Dark Terminal v2.0
+│   ├── components/
+│   │   └── ActivityFeed.tsx  # GitHub + TIL combined activity tracker
+│   ├── types/
+│   │   └── activity.ts       # TypeScript definitions for activity data
+│   └── lib/
+│       └── mockActivity.ts   # Stable, deterministic mock data generator
+├── public/                   # Static SVGs
+└── personal_info.md          # Source of Truth for portfolio data
 
 -------------------------------------------------------------------------------
 
-4. File-by-File Explanation
----------------------------
+4. Core Features Implemented
+----------------------------
 
-4.1 Configuration Files
+4.1 Real-World Data Integration
+- All placeholder "Lorem Ipsum" or fake names replaced with real information.
+- Professional history from DreamAlle Solutions, Akashalabdhi, and Internships.
+- Projects include: Stocai (AI), Activity Tracker (Edge Store), and Company Websites.
 
-package.json:
-- Defines the project name, version, and dependencies.
-- Scripts: dev (start dev server), build (production build), start, lint.
+4.2 Responsive Design
+- Desktop: Full-fidelity layouts (CRT frame on main page).
+- Mobile: Auto-stacking columns, scrollable main content, hidden frames for better usage.
+- Touch-friendly tap targets and optimized font sizes for readability on mobile.
 
-next.config.ts:
-- Framework configuration (currently default).
+4.3 Interactive Detail Modals (Click-to-Expand)
+- Projects, Experience, and Skills sections are clickable.
+- Opens a focused detail overlay/modal.
+- RETRO MODAL: Redesigned to look like a sub-screen of the CRT monitor with its 
+  own scanlines, phosphor glow, and terminal-style header/footer.
+- MODERN MODAL: Sleek dark overlay with animated proficiency bars.
 
-tsconfig.json:
-- TypeScript setup (target ES2017, strict mode, aliases).
+4.4 Personalization
+- Added Interests, Fun Facts, and Education (B.Tech, Graphic Era University).
+- Clickable contact links (Email, GitHub, LinkedIn).
+- Integrated Resume download button linked to Google Drive.
 
-eslint.config.mjs:
-- Linting rules for Core Web Vitals and TypeScript.
-
-postcss.config.mjs:
-- Configures Tailwind CSS processing.
-
-.gitignore:
-- Standard exclusions (node_modules, .next, etc).
-
-4.2 Application Code
-
-app/layout.tsx:
-- Sets the page title ("Vedant Sharma — Developer") and meta description.
-- Loads global fonts and CSS.
-
-app/globals.css:
-- Base colors (#080400 / #ff9500), hides scrollbars, sets selection styles.
-
-app/page.tsx (Amber Terminal):
-- Creates the CRT TV effect with layered shadows and gradients.
-- Horizontal ticker for skills.
-- Live clock updates every second.
-- Hardcoded about, experience, and project data.
-
-app/new/page.tsx (Modern Terminal):
-- Dark blue-black theme (#0a0a10).
-- Skill tags with colored indicator dots.
-- Animated sparklines for activity stats.
+4.5 GitHub + TIL Activity Tracker
+- Combined display of GitHub commits and "Today I Learned" (TIL) posts.
+- Two display modes:
+  - COMPACT (Weekly): 7-day strip on the main panel.
+  - FULL (Monthly): 28-day (4-week) grid in a detail modal.
+- Unique cell styling:
+  - Commit-only: Top half colored, bottom empty.
+  - TIL-only: Top empty, bottom colored.
+  - Both: Full solid square (Green).
+- Stable, deterministic mock data (data stays static across re-renders).
+- Interactive hover tooltips showing date and specific activity counts.
+- Theme-consistent: Amber Terminal (retro) vs. Modern (cyan/emerald).
 
 -------------------------------------------------------------------------------
 
@@ -129,116 +113,59 @@ app/new/page.tsx (Modern Terminal):
 ----------------
 
 Color Palette:
-- Amber Terminal: #080400 (BG), #ff9500 (Text)
-- Modern Terminal: #0a0a10 (BG), #ffffff (Text), Cyan/Emerald/Rose accents
+- Amber Terminal: #080400 (BG), #ff9500 (Text/Screen), #ff950033 (Phosphor)
+- Modern Terminal: #0a0a10 (BG), #ffffff (Text), Cyan/Rose/Emerald accents
 
 Typography:
-- JetBrains Mono (monospaced) for terminal feel.
-- Inter (sans-serif) for cleaner modern UI elements.
-- Information density: Small font sizes (9px-12px).
+- JetBrains Mono for the core terminal/code aesthetic.
+- Inter for modern UI labels and readability.
 
-Animations:
-- Staggered entry fades for panels.
-- Continuous skill ticker scroll.
-- Pulse effects for online indicators.
-
--------------------------------------------------------------------------------
-
-6. Architecture
----------------
-
-- Uses Next.js 16 App Router.
-- Content is strictly client-side ("use client").
-- Zero external APIs or databases (static components).
-- Motion/Framer Motion for all UI transitions.
+Key Visual Effects:
+- Scanline CSS layering.
+- Framer Motion staggered entry fades.
+- Real-time Clock synchronization.
+- Phosphor radial glow gradients.
+- Triangle-split cell backgrounds for mixed activity states.
 
 -------------------------------------------------------------------------------
 
-7. How to Run
+6. How to Run
 -------------
 
 1. cd vidansh-info-website
 2. npm install
 3. npm run dev
-4. Open http://localhost:3000
+4. Root Page: http://localhost:3000
+5. Modern Page: http://localhost:3000/new
 
 -------------------------------------------------------------------------------
 
-8. Placeholder Data (Action Items)
-----------------------------------
+7. Completed Objectives (Checklist)
+-----------------------------------
 
-The following items currently contain DUMMY DATA and must be updated:
-- Name: Change "VEDANSH" to your name.
-- Title: Update your job title.
-- Bio/About: Rewrite with your actual story.
-- Experience: Replace fake companies with your work history.
-- Skills: List your actual tech stack.
-- Projects: Add your real GitHub/Portfolio projects.
-- Contact: Update Email, GitHub, LinkedIn URLs.
-- Stats: Update commit/repo counts or remove them.
-- Miloestones: Update the "LOG" section with real events.
-
--------------------------------------------------------------------------------
-
-9. QUESTIONNAIRE — Fill your info here
---------------------------------------
-
-SECTION A: IDENTITY
-A1. Full Name: ___
-A2. Display Name: ___
-A3. Professional Title: ___
-A4. One-line Tagline: ___
-A5. About Me (2-4 sentences): ___
-
-SECTION B: DETAILS
-B1. Location (City/Country): ___
-B2. Education: ___
-B3. Current Status: ___
-B4. Main Tech Focus: ___
-
-SECTION C: EXPERIENCE
-Job 1: Title: ___, Company: ___, Period: ___, Current: ___
-Job 2: Title: ___, Company: ___, Period: ___, Current: ___
-Job 3: Title: ___, Company: ___, Period: ___, Current: ___
-
-SECTION D: SKILLS
-D1. Languages: ___
-D2. Frontend: ___
-D3. Backend: ___
-D4. Databases: ___
-D5. Cloud/DevOps: ___
-
-SECTION E: PROJECTS
-Project 1: Name: ___, Desc: ___, Status: ___, Link: ___
-Project 2: Name: ___, Desc: ___, Status: ___, Link: ___
-Project 3: Name: ___, Desc: ___, Status: ___, Link: ___
-
-SECTION F: CONTACT
-F1. Email: ___
-F2. GitHub URL: ___
-F3. LinkedIn URL: ___
-F4. Twitter/X: ___
-F5. Preferred Contact: ___
-
-SECTION G: SETUP
-G1. Shell: ___
-G2. Editor: ___
-G3. Terminal: ___
-G4. OS: ___
-
-SECTION H: STATS & LOGS
-H1. Repo Count: ___
-H2. Monthly Commits: ___
-H3. Milestones (Log entries):
-    - ___
-    - ___
-    - ___
-
-SECTION I: PREFERENCES
-I1. Preferred Design (Amber / Modern / Both): ___
-I2. Add Profile Photo? (Yes/No): ___
-I3. Custom Changes?: ___
+[X] Replace all placeholder names and titles.
+[X] Fix "Vedant" typo in metadata to "Vedansh".
+[X] Implement Mobile Responsiveness (Vertical scroll on mobile).
+[X] Build Project Detail Modals.
+[X] Build Experience Detail Modals.
+[X] Build Skill Proficiency Modals with animated bars.
+[X] Theme-consistency for Retro Modal (CRT Look).
+[X] Add Personal Interests and Fun Facts.
+[X] Secure direct links for Socials and Resume.
+[X] Combined GitHub + TIL Activity Feed Component.
+[X] Modal extension for Full Monthly Activity Grid.
+[X] Stable, non-randomizing mock data implementation.
 
 -------------------------------------------------------------------------------
-INSTRUCTIONS: Answer the questions above and send them back to me. 
-I will then update the entire website with your information!
+
+8. Future Roadmap
+-----------------
+
+1. Theme Toggler: A persistent switch to toggle between Amber and Modern views.
+2. Terminal Input: Allow users to type commands like "/help" or "/projects".
+3. Blog Integration: Add a section for articles or technical notes.
+4. Real API Integration: Connect to GitHub GraphQL API for live commit data.
+5. Vercel Deployment: Deploy the site to a live URL (vedansh.dev).
+
+-------------------------------------------------------------------------------
+END OF REPORT

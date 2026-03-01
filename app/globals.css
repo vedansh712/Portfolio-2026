@@ -20,14 +20,21 @@ html,
 body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
   height: 100%;
   width: 100%;
   background: #080400;
   color: #ff9500;
 }
 
-/* Hide scrollbars everywhere */
+/* Desktop: no overflow (CRT effect needs it). Mobile: allow scrolling */
+@media (min-width: 768px) {
+  html,
+  body {
+    overflow: hidden;
+  }
+}
+
+/* Hide scrollbars everywhere but allow scrolling */
 ::-webkit-scrollbar {
   display: none;
 }
@@ -40,4 +47,11 @@ body {
 ::selection {
   background: rgba(255, 149, 0, 0.3);
   color: #ffb84d;
+}
+
+/* Smooth touch scrolling on mobile */
+@supports (-webkit-touch-callout: none) {
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }

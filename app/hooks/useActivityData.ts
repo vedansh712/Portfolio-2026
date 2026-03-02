@@ -11,18 +11,9 @@ export type ActivityState = {
     loading: boolean;
 };
 
-/**
- * Fetches real GitHub + TIL data from /api/activity.
- * Automatically falls back to deterministic mock data if:
- *  - GITHUB_TOKEN is not set (server returns null)
- *  - The API request fails for any reason
- *
- * The hook starts in loading=true state so the ActivityFeed can
- * show a skeleton while the fetch is in-flight.
- */
 export function useActivityData(): ActivityState {
     const [state, setState] = useState<ActivityState>({
-        githubData: [],        // empty → shows skeleton
+        githubData: [],
         tilData: [],
         lastCommit: null,
         loading: true,
@@ -39,7 +30,6 @@ export function useActivityData(): ActivityState {
             .then((data: { github: ActivityDay[] | null; tils: TILPost[]; lastCommit: LastCommit | null }) => {
                 if (cancelled) return;
                 setState({
-                    // If no GitHub token, server returns null → use mock
                     githubData: data.github ?? mockGithubData,
                     tilData: data.tils?.length ? data.tils : mockTILPosts,
                     lastCommit: data.lastCommit ?? null,
@@ -48,7 +38,6 @@ export function useActivityData(): ActivityState {
             })
             .catch(() => {
                 if (cancelled) return;
-                // Any network failure → silent fallback to mock
                 setState({
                     githubData: mockGithubData,
                     tilData: mockTILPosts,
@@ -58,7 +47,7 @@ export function useActivityData(): ActivityState {
             });
 
         return () => { cancelled = true; };
-    }, []); // runs once on mount
+    }, []);
 
     return state;
 }

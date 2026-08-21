@@ -52,8 +52,9 @@ export async function GET() {
         // data/til.json missing — client falls back to mock
     }
 
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GITHUB_TOKEN?.trim();
     if (!token) {
+        console.warn("[/api/activity] GITHUB_TOKEN is not set — activity feed will be empty.");
         return NextResponse.json({ github: null, tils: tilData, lastCommit: null });
     }
 
@@ -75,7 +76,14 @@ export async function GET() {
             }),
         });
 
-        if (!res.ok) return NextResponse.json({ github: null, tils: tilData, lastCommit: null });
+        if (!res.ok) {
+            // 401 = token invalid/revoked/expired, 403 = rate limited or scope refused
+            console.error(
+                `[/api/activity] GitHub responded ${res.status} ${res.statusText} —`,
+                (await res.text()).slice(0, 200)
+            );
+            return NextResponse.json({ github: null, tils: tilData, lastCommit: null });
+        }
 
         const json = await res.json();
         if (json.errors || !json.data?.user) {

@@ -6,224 +6,24 @@ import { useState, useEffect, useCallback } from "react";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { useActivityData } from "./hooks/useActivityData";
 import type { LastCommit } from "./types/activity";
+import {
+  PROFILE,
+  CONTACT,
+  EXPERIENCE,
+  PROJECTS,
+  SKILLS,
+  TICKER_ITEMS,
+  LOG_ENTRIES,
+  LINK_KINDS,
+  type Job,
+  type Project,
+} from "./lib/portfolio";
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["300", "400", "500", "700"],
 });
 
-/* ═══════════════════════════════════════════════
-   DATA — All real info from personal_info.md
-   ═══════════════════════════════════════════════ */
-
-const PROFILE = {
-  name: "VEDANSH SHARMA",
-  title: "FULL STACK DEVELOPER",
-  tagline: "Crafting digital experiences with modern technologies — turning complex problems into seamless digital solutions.",
-  about: "Mechanical Engineering graduate turned self-taught Full Stack Developer. Confident in taking products from scratch to deployment. I build scalable web applications, AI-integrated products, and tools that make a real difference.",
-  aboutExtra: "Passionate about clean code, innovative solutions, and user-centered design. I thrive on continuous learning and creative problem-solving.",
-  location: "Uttarakhand, INDIA",
-  education: "B.Tech — Graphic Era University",
-  educationYears: "2019 - 2023",
-  status: "Open to opportunities",
-  focus: "Full-Stack · AI · Web Apps",
-  interests: "Long bike rides, exploring new places, creative problem solving.",
-  philosophy: "Clean, maintainable code · User-centered design · Continuous learning",
-  funFact: "Believes balance between adventure (bike rides) and creativity fuels better problem-solving.",
-};
-
-const CONTACT = {
-  email: "vedanshsharma712@gmail.com",
-  emailLink: "mailto:vedanshsharma712@gmail.com",
-  phone: "+91 9760108830",
-  phoneLink: "tel:+919760108830",
-  github: "github.com/vedansh712",
-  githubLink: "https://github.com/vedansh712",
-  linkedin: "linkedin.com/in/vedansh712",
-  linkedinLink: "https://www.linkedin.com/in/vedansh712/",
-  resume: "Resume (Google Drive)",
-  resumeLink: "https://drive.google.com/file/d/19ZkM5WTKAD0POocpNzdRBtnQX6_MJfAc/view?usp=sharing",
-};
-
-interface Job {
-  role: string;
-  company: string;
-  location: string;
-  period: string;
-  current: boolean;
-  achievements: string[];
-}
-
-const EXPERIENCE: Job[] = [
-  {
-    role: "Full Stack Developer",
-    company: "DreamAlle Solutions",
-    location: "Remote",
-    period: "2024 - 2025",
-    current: true,
-    achievements: [
-      "Lead development of scalable web applications (0 to 10K+ users)",
-      "Architected microservices infrastructure and mentored junior developers",
-      "Reduced application load time by 30% through optimization",
-      "Designed dynamic prompt pipelines for integration with OpenAI's API",
-      "Led development on major product redesign to MVC principles",
-      "Built core platform features from scratch",
-      "Streamlined Git branching and code review practices",
-    ],
-  },
-  {
-    role: "Software Development Engineer",
-    company: "Akashalabdhi",
-    location: "IIT Roorkee",
-    period: "2023 - 2024",
-    current: false,
-    achievements: [
-      "Created responsive websites and web applications for diverse clients",
-      "Launched dynamic company website that boosted traffic by 30% in three months",
-      "Implemented performance optimizations reducing load time by 20%",
-      "Built mobile app with user-centric features, improving engagement",
-      "Collaborated with design and business teams for market-aligned products",
-    ],
-  },
-  {
-    role: "Software Developer Intern",
-    company: "Convival Tech Hub",
-    location: "Remote",
-    period: "6 Months",
-    current: false,
-    achievements: [
-      "Completed intensive training program",
-      "Built first production React application",
-      "Contributed to open-source projects",
-    ],
-  },
-];
-
-interface Project {
-  name: string;
-  shortDesc: string;
-  fullDesc: string;
-  techStack: string[];
-  status: string;
-  statusColor: string;
-  liveLink?: string;
-  githubLink?: string;
-  highlights: string[];
-}
-
-const PROJECTS: Project[] = [
-  {
-    name: "Stocai",
-    shortDesc: "Full Stack AI Coaching Platform",
-    fullDesc:
-      "Developed backend infrastructure and frontend for scalable applications. Optimized PostgreSQL schemas and OpenAI prompt refinement for intelligent coaching workflows.",
-    techStack: ["React", "Next.js", "Python", "PostgreSQL", "JWT", "OpenAI"],
-    status: "▲ LIVE",
-    statusColor: "text-green-400/70",
-    liveLink: "https://www.mystocai.com/",
-    highlights: [
-      "Scalable backend architecture with JWT auth",
-      "OpenAI prompt pipeline for AI coaching",
-      "PostgreSQL schema optimization for performance",
-      "Full-stack from design to deployment",
-    ],
-  },
-  {
-    name: "Activity Tracker",
-    shortDesc: "Browser Extension",
-    fullDesc:
-      "Monitors and analyzes browsing activity with domain-level insights. Includes time limits, alerts, and smart content categorization. Published on the Microsoft Edge Add-ons Store.",
-    techStack: ["JavaScript", "HTML", "CSS", "Manifest V3", "Browser APIs"],
-    status: "● PUBLISHED",
-    statusColor: "text-green-400/70",
-    liveLink: "https://microsoftedge.microsoft.com/addons/detail/llljlnkcpejaonlbbnodhfjblichghjf",
-    githubLink: "https://github.com/vedansh712/Activity-Tracker-extention",
-    highlights: [
-      "Published on Microsoft Edge Store",
-      "Domain-level browsing analytics",
-      "Smart content categorization system",
-      "Configurable time limits and alerts",
-    ],
-  },
-  {
-    name: "Akashalabdhi",
-    shortDesc: "Company Website",
-    fullDesc:
-      "Launched dynamic company website on AWS, boosting traffic and significantly cutting page load time with performance optimizations.",
-    techStack: ["React", "TypeScript", "AWS", "Figma", "Git", "React Native"],
-    status: "▲ LIVE",
-    statusColor: "text-green-400/70",
-    liveLink: "https://akashalabdhi.space/",
-    highlights: [
-      "Boosted traffic by 30% in three months",
-      "Deployed on AWS infrastructure",
-      "Pixel-perfect implementation from Figma designs",
-      "Performance optimized — reduced load time by 20%",
-    ],
-  },
-];
-
-const SKILLS = [
-  {
-    cat: "FRONTEND",
-    items: ["React", "Next.js", "TypeScript", "Tailwind CSS", "HTML/CSS"],
-  },
-  {
-    cat: "BACKEND",
-    items: ["Node.js", "Python", "Express.js", "REST APIs"],
-  },
-  {
-    cat: "DATABASE",
-    items: ["MongoDB", "PostgreSQL", "Redis", "Firebase"],
-  },
-  {
-    cat: "DEVOPS",
-    items: ["Docker", "AWS", "Git", "CI/CD"],
-  },
-];
-
-const SKILL_LEVELS: Record<string, number> = {
-  React: 95,
-  "Next.js": 90,
-  TypeScript: 88,
-  "Tailwind CSS": 92,
-  "HTML/CSS": 95,
-  "Node.js": 90,
-  Python: 85,
-  "Express.js": 88,
-  "REST APIs": 92,
-  MongoDB: 88,
-  PostgreSQL: 85,
-  Redis: 75,
-  Firebase: 80,
-  Docker: 82,
-  AWS: 78,
-  Git: 95,
-  "CI/CD": 80,
-};
-
-const TICKER_ITEMS = [
-  "REACT ▲ 19.2",
-  "NEXT.JS ● 16.1",
-  "TYPESCRIPT ◆ 5.x",
-  "NODE.JS ▲ 22",
-  "PYTHON ● 3.12",
-  "POSTGRESQL ▲ 16",
-  "MONGODB ◆ 7.0",
-  "DOCKER ▲ 27",
-  "AWS ● ACTIVE",
-  "TAILWIND ▲ 4.0",
-  "REDIS ◆ 7.4",
-  "EXPRESS ● 4.x",
-];
-
-const LOG_ENTRIES = [
-  { t: "2025-01", m: "Shipped Stocai AI platform", lvl: "SHIP" as const },
-  { t: "2024-06", m: "Published Activity Tracker on Edge Store", lvl: "FEAT" as const },
-  { t: "2024-01", m: "Joined DreamAlle Solutions", lvl: "INFO" as const },
-  { t: "2023-08", m: "Launched Akashalabdhi website", lvl: "SHIP" as const },
-  { t: "2023-05", m: "Graduated — B.Tech, Graphic Era University", lvl: "INFO" as const },
-];
 
 /* ═══════════════════════════════════════════════
    HOOKS
@@ -495,33 +295,29 @@ function ProjectDetail({ project }: { project: Project }) {
           ))}
         </ul>
       </div>
+      {project.links && project.links.length > 0 && (
       <div className="border-t border-amber-500/15 pt-3 space-y-1.5">
         <SectionLabel>LINKS</SectionLabel>
-        {project.liveLink && (
-          <a
-            href={project.liveLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-amber-400 hover:text-amber-300 transition-colors group"
-          >
-            <span className="text-green-400/60">●</span>
-            <span className="group-hover:underline">{project.liveLink.replace("https://", "")}</span>
-            <span className="text-amber-500/30 text-[9px]">↗ LIVE</span>
-          </a>
-        )}
-        {project.githubLink && (
-          <a
-            href={project.githubLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-amber-400 hover:text-amber-300 transition-colors group"
-          >
-            <span className="text-amber-500/60">◆</span>
-            <span className="group-hover:underline">{project.githubLink.replace("https://", "")}</span>
-            <span className="text-amber-500/30 text-[9px]">↗ GITHUB</span>
-          </a>
-        )}
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          {project.links?.map((link) => {
+            const kind = LINK_KINDS[link.kind];
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-amber-400 border border-amber-500/25 bg-amber-500/5 hover:border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
+              >
+                <span className="text-[11px] leading-none">{kind.icon}</span>
+                <span className="text-[10px]">{link.label ?? kind.label}</span>
+                <span className="text-amber-500/30 text-[9px]">↗</span>
+              </a>
+            );
+          })}
+        </div>
       </div>
+      )}
     </>
   );
 }
@@ -564,25 +360,22 @@ function SkillsDetail() {
         <div key={group.cat}>
           <SectionLabel>{group.cat}</SectionLabel>
           <div className="space-y-2 mt-1.5">
-            {group.items.map((skill) => {
-              const level = SKILL_LEVELS[skill] || 50;
-              return (
-                <div key={skill}>
-                  <div className="flex justify-between text-[10px] mb-0.5">
-                    <span className="text-amber-400/80">{skill}</span>
-                    <span className="text-amber-500/40 tabular-nums">{level}%</span>
-                  </div>
-                  <div className="h-1.5 bg-amber-500/10 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${level}%` }}
-                      transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
-                      className="h-full bg-amber-500/60"
-                    />
-                  </div>
+            {group.items.map((skill) => (
+              <div key={skill.n}>
+                <div className="flex justify-between text-[10px] mb-0.5">
+                  <span className="text-amber-400/80">{skill.n}</span>
+                  <span className="text-amber-500/40 tabular-nums">{skill.level}%</span>
                 </div>
-              );
-            })}
+                <div className="h-1.5 bg-amber-500/10 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${skill.level}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+                    className="h-full bg-amber-500/60"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}
@@ -639,13 +432,15 @@ function Panel({
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-hidden p-2">{children}</div>
+      <div className="flex-1 overflow-y-auto p-2" style={{ scrollbarWidth: "none" }}>
+        {children}
+      </div>
     </div>
   );
 }
 
 function Ticker() {
-  const text = TICKER_ITEMS.join("    ·    ");
+  const text = TICKER_ITEMS.map((t) => `${t.name} ${t.icon} ${t.v}`).join("    ·    ");
   return (
     <div className="overflow-hidden whitespace-nowrap">
       <motion.div
@@ -915,7 +710,7 @@ export default function BloombergTerminal() {
                     <span className="text-amber-400 font-bold text-sm">
                       {PROFILE.name}
                     </span>
-                    <span className="text-amber-500/50 text-[9px] md:text-[10px]">
+                    <span className="text-amber-500/50 text-[9px] md:text-[10px] uppercase">
                       {PROFILE.title}
                     </span>
                     <span className="text-green-500/60 text-[9px] ml-auto">
@@ -966,7 +761,7 @@ export default function BloombergTerminal() {
                         className="flex items-start gap-2 pb-1.5 border-b border-amber-500/8 last:border-0 cursor-pointer hover:bg-amber-500/[0.03] transition-colors -mx-1 px-1 py-0.5 rounded-sm"
                         onClick={() => openJob(job)}
                       >
-                        <span className="text-amber-500/30 text-[9px] w-18 shrink-0 tabular-nums">
+                        <span className="text-amber-500/30 text-[9px] w-20 shrink-0 tabular-nums leading-tight">
                           {job.period}
                         </span>
                         <div className="min-w-0">
@@ -1012,8 +807,8 @@ export default function BloombergTerminal() {
                         </span>
                         <div className="text-amber-400/70 mt-0.5">
                           {group.items.map((item, i) => (
-                            <span key={item}>
-                              {item}
+                            <span key={item.n}>
+                              {item.n}
                               {i < group.items.length - 1 && (
                                 <span className="text-amber-500/25"> · </span>
                               )}
@@ -1049,9 +844,10 @@ export default function BloombergTerminal() {
                           </p>
                         </div>
                         <span
-                          className={`${proj.statusColor} text-[9px] shrink-0 ml-2`}
+                          className="text-[9px] shrink-0 ml-2 whitespace-nowrap"
+                          style={{ color: proj.statusColor, opacity: 0.75 }}
                         >
-                          {proj.status}
+                          {proj.statusIcon} {proj.status}
                         </span>
                       </div>
                     ))}
@@ -1071,6 +867,7 @@ export default function BloombergTerminal() {
                     <Row label="PHONE" value={CONTACT.phone} valueColor="text-amber-400" href={CONTACT.phoneLink} />
                     <Row label="GITHUB" value={CONTACT.github} valueColor="text-amber-400" href={CONTACT.githubLink} />
                     <Row label="LINKEDIN" value={CONTACT.linkedin} valueColor="text-amber-400" href={CONTACT.linkedinLink} />
+                    <Row label="WEB" value={CONTACT.website} valueColor="text-amber-400" href={CONTACT.websiteLink} />
                     <div className="border-t border-amber-500/10 pt-1.5 mt-1">
                       <a
                         href={CONTACT.resumeLink}
@@ -1106,6 +903,10 @@ export default function BloombergTerminal() {
                 <Panel title="PERSONAL" titleRight="--me" className="shrink-0">
                   <div className="space-y-1.5 text-[10px]">
                     <div>
+                      <span className="text-amber-600/60 text-[9px] font-bold">CERTIFICATION</span>
+                      <p className="text-amber-500/60 mt-0.5">{PROFILE.certification}</p>
+                    </div>
+                    <div>
                       <span className="text-amber-600/60 text-[9px] font-bold">INTERESTS</span>
                       <p className="text-amber-500/60 mt-0.5">{PROFILE.interests}</p>
                     </div>
@@ -1125,15 +926,7 @@ export default function BloombergTerminal() {
                     {LOG_ENTRIES.map((entry, i) => (
                       <span key={i} className="text-amber-500/40 shrink-0">
                         <span className="text-amber-500/20">{entry.t}</span>{" "}
-                        <span
-                          className={
-                            entry.lvl === "SHIP"
-                              ? "text-cyan-400/50"
-                              : entry.lvl === "FEAT"
-                                ? "text-yellow-400/50"
-                                : "text-amber-500/40"
-                          }
-                        >
+                        <span style={{ color: entry.c, opacity: 0.6 }}>
                           [{entry.lvl}]
                         </span>{" "}
                         {entry.m}

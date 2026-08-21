@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
     AMBER, GREEN, MAX_SHIELD, GREEN_SCORE_STEP, LEVELS,
-    harvestPanel, spawnGreen, split, scoreFor, stepRock, wrap, hits, burst,
+    CLEAR_FRAMES, CLEAR_BONUS_PER_SHIELD,
+    harvestPanel, spawnGreen, split, scoreFor, stepRock, wrap, hits, burst, floater,
     shuffle, unionRect, rectOf,
     type Game, type Rock,
 } from "./core";
@@ -38,7 +39,9 @@ export default function Asteroids({
     const rafRef = useRef<number | null>(null);
     const keysRef = useRef<Record<string, boolean>>({});
     const consumedRef = useRef<HTMLElement[]>([]);
-    const [hud, setHud] = useState({ score: 0, lives: 3, shield: MAX_SHIELD, level: 1 });
+    const [hud, setHud] = useState({
+        score: 0, lives: 3, shield: MAX_SHIELD, level: 1, panelsDone: 0, panelsTotal: 3,
+    });
     const [over, setOver] = useState(false);
     const exitRef = useRef(onExit);
     useEffect(() => { exitRef.current = onExit; }, [onExit]);
@@ -97,7 +100,8 @@ export default function Asteroids({
             },
             bullets: [], rocks: [], particles: [],
             score: 0, lives: 3, shield: MAX_SHIELD, level: 1,
-            cleared: [], pending: [], absorbing: null, lastGreenScore: 0,
+            cleared: [], pending: [],
+            banner: null, floaters: [], shake: 0, flash: 0, lastGreenScore: 0,
         };
         gameRef.current = g;
         if (process.env.NODE_ENV !== "production") {
@@ -175,7 +179,7 @@ export default function Asteroids({
             if (!running) return;
             const g = gameRef.current;
             if (!g) return;
-            const dt = Math.min((now - last) / 16.667, 3);
+            const dt = Math.max(0, Math.min((now - last) / 16.667, 3));
             last = now;
 
             const keys = keysRef.current;
@@ -246,8 +250,10 @@ export default function Asteroids({
                     if (!hits(r, s.x, s.y, 7)) continue;
                     if (r.heals) {
                         g.rocks.splice(ri, 1);
+                        const before = g.shield;
                         g.shield = Math.min(MAX_SHIELD, g.shield + 35);
                         g.particles.push(...burst(r.x, r.y, GREEN, 14));
+                        g.floaters.push(floater(r.x, r.y - 10, `+${g.shield - before}`, GREEN));
                         g.score += scoreFor(r.kind);
                         continue;
                     }
@@ -255,6 +261,10 @@ export default function Asteroids({
                     g.rocks.splice(ri, 1);
                     g.shield -= r.damage;
                     g.particles.push(...burst(s.x, s.y, AMBER, 12));
+                    g.floaters.push(floater(s.x, s.y - 12, `-${r.damage}`, "#ef4444"));
+                    // Heavier hits shake harder, so damage is felt not just read.
+                    g.shake = Math.min(14, g.shake + 3 + r.damage * 0.3);
+                    g.flash = Math.min(1, g.flash + 0.25 + r.damage * 0.012);
                     s.invuln = 45;
                     if (g.shield <= 0) {
                         g.lives -= 1;
@@ -264,6 +274,8 @@ export default function Asteroids({
                         s.y = g.field.y + g.field.h / 2;
                         s.vx = s.vy = 0;
                         g.particles.push(...burst(s.x, s.y, AMBER, 40));
+                        g.shake = 22;
+                        g.flash = 1;
                         if (g.lives <= 0) { g.status = "gameover"; setOver(true); }
                     }
                 }
@@ -274,35 +286,68 @@ export default function Asteroids({
                     if (!g.rocks.some((r) => r.heals)) g.rocks.push(spawnGreen(g.field));
                 }
 
-                /* panel cleared -> open the next one */
+                /* panel cleared -> award, announce, then absorb the next */
                 if (g.rocks.length === 0) {
+                    const bonus = Math.round(g.shield * CLEAR_BONUS_PER_SHIELD);
+                    g.score += bonus;
+                    g.shield = Math.min(MAX_SHIELD, g.shield + 20);
+                    g.floaters.push(
+                        floater(g.field.x + g.field.w / 2, g.field.y + g.field.h / 2 + 26, `+${bonus}`, AMBER)
+                    );
+
+                    let next: string | null = null;
                     if (g.pending.length > 0) {
-                        const next = g.pending.shift()!;
-                        consume(next, g);
-                        g.cleared.push(next);
+                        next = g.pending.shift()!;
                     } else if (g.level < LEVELS.length) {
                         g.level += 1;
                         g.pending = shuffle(LEVELS[g.level - 1]);
-                        const next = g.pending.shift()!;
-                        consume(next, g);
-                        g.cleared.push(next);
-                    } else {
-                        g.status = "gameover";
-                        setOver(true);
+                        next = g.pending.shift()!;
                     }
+
+                    g.banner = {
+                        cleared: g.cleared[g.cleared.length - 1] ?? "",
+                        next, bonus, t: CLEAR_FRAMES,
+                    };
+                    g.status = next ? "clearing" : "gameover";
+                    if (!next) setOver(true);
+                }
+            } else if (g.status === "clearing" && g.banner) {
+                // Hold on the banner so the field growth is legible, then absorb.
+                g.banner.t -= dt;
+                if (g.banner.t <= 0) {
+                    const next = g.banner.next!;
+                    consume(next, g);
+                    g.cleared.push(next);
+                    g.banner = null;
+                    g.status = "playing";
                 }
             }
 
-            /* particles */
+            /* particles, floaters, decaying feedback */
             for (const p of g.particles) {
                 p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
             }
             g.particles = g.particles.filter((p) => p.life > 0);
 
+            for (const fl of g.floaters) { fl.y += fl.vy * dt; fl.life -= dt; }
+            g.floaters = g.floaters.filter((fl) => fl.life > 0);
+
+            g.shake *= Math.pow(0.88, dt);
+            if (g.shake < 0.3) g.shake = 0;
+            g.flash *= Math.pow(0.90, dt);
+            if (g.flash < 0.01) g.flash = 0;
+
             /* ── draw ── */
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
             const f = g.field;
+            ctx.save();
+            if (g.shake > 0) {
+                ctx.translate(
+                    (Math.random() - 0.5) * g.shake,
+                    (Math.random() - 0.5) * g.shake
+                );
+            }
             ctx.save();
             ctx.strokeStyle = "rgba(255,149,0,0.35)";
             ctx.lineWidth = 1;
@@ -366,12 +411,60 @@ export default function Asteroids({
                 ctx.restore();
             }
 
+            /* damage flash, inside the clip so it reads as the field being hit */
+            if (g.flash > 0) {
+                ctx.fillStyle = `rgba(239,68,68,${g.flash * 0.22})`;
+                ctx.fillRect(f.x, f.y, f.w, f.h);
+            }
+
             ctx.restore(); // end playfield clip
+
+            /* floating damage / bonus numbers */
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "bold 11px monospace";
+            for (const fl of g.floaters) {
+                ctx.globalAlpha = Math.max(0, Math.min(1, fl.life / fl.max));
+                ctx.fillStyle = fl.color;
+                ctx.fillText(fl.text, fl.x, fl.y);
+            }
+            ctx.globalAlpha = 1;
+
+            /* stage-clear banner */
+            if (g.banner) {
+                const cx = f.x + f.w / 2;
+                const cy = f.y + f.h / 2;
+                const fade = Math.min(1, g.banner.t / 25);
+                ctx.globalAlpha = fade;
+                ctx.fillStyle = "rgba(10,8,4,0.82)";
+                ctx.fillRect(f.x, cy - 34, f.w, 68);
+                ctx.strokeStyle = "rgba(255,149,0,0.45)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(f.x + 0.5, cy - 33.5, f.w - 1, 67);
+                ctx.fillStyle = AMBER;
+                ctx.font = "bold 14px monospace";
+                ctx.fillText(`${g.banner.cleared} CLEARED`, cx, cy - 14);
+                ctx.font = "11px monospace";
+                ctx.fillStyle = "rgba(255,149,0,0.7)";
+                ctx.fillText(`BONUS +${g.banner.bonus}`, cx, cy + 4);
+                if (g.banner.next) {
+                    ctx.fillStyle = "rgba(255,149,0,0.5)";
+                    ctx.fillText(`BREACHING ${g.banner.next}…`, cx, cy + 20);
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore(); // end shake
 
             hudTick -= dt;
             if (hudTick <= 0) {
                 hudTick = 6;
-                setHud({ score: g.score, lives: g.lives, shield: g.shield, level: g.level });
+                const total = LEVELS[g.level - 1]?.length ?? 0;
+                const doneThisLevel = total - g.pending.length - (g.status === "clearing" ? 0 : 0);
+                setHud({
+                    score: g.score, lives: g.lives, shield: g.shield, level: g.level,
+                    panelsDone: Math.max(0, Math.min(total, doneThisLevel)), panelsTotal: total,
+                });
             }
 
             rafRef.current = requestAnimationFrame(frame);
@@ -384,6 +477,7 @@ export default function Asteroids({
             (window as unknown as { __feedStep?: (n: number) => void }).__feedStep = (n = 1) => {
                 running = true; // the hidden-tab guard would otherwise bail out
                 const base = performance.now();
+                last = base - 16.667; // so the first stepped frame is a full tick
                 for (let i = 0; i < n; i++) frame(base + i * 16.667);
             };
         }
@@ -409,6 +503,7 @@ export default function Asteroids({
                 <div className="flex items-center gap-4">
                     <span>SCORE {String(hud.score).padStart(6, "0")}</span>
                     <span className="opacity-60">LEVEL {hud.level}</span>
+                    <span className="opacity-60">PANELS {hud.panelsDone}/{hud.panelsTotal}</span>
                     <span className="opacity-60">SHIPS {"▲".repeat(Math.max(0, hud.lives))}</span>
                 </div>
                 <div className="flex items-center gap-2">

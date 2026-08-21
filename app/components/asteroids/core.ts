@@ -40,6 +40,19 @@ export type Particle = {
     x: number; y: number; vx: number; vy: number; life: number; max: number; color: string;
 };
 
+/** Damage / bonus numbers that rise off the point of impact. */
+export type Floater = {
+    x: number; y: number; vy: number; life: number; max: number; text: string; color: string;
+};
+
+/** Shown while a panel is being absorbed. */
+export type Banner = {
+    cleared: string;
+    next: string | null;
+    bonus: number;
+    t: number;
+};
+
 export type Ship = {
     x: number; y: number; vx: number; vy: number;
     angle: number;
@@ -66,7 +79,12 @@ export type Game = {
     /** panels queued for this level, order shuffled */
     pending: string[];
     /** panel currently sliding its header away */
-    absorbing: { panel: string; t: number } | null;
+    banner: Banner | null;
+    floaters: Floater[];
+    /** decaying impact shake, in px */
+    shake: number;
+    /** decaying red damage flash, 0..1 */
+    flash: number;
     lastGreenScore: number;
 };
 
@@ -74,6 +92,10 @@ export const AMBER = "#ff9500";
 export const GREEN = "#22c55e";
 export const MAX_SHIELD = 100;
 export const GREEN_SCORE_STEP = 500;
+/** Frames the stage-clear banner holds before the next panel opens. */
+export const CLEAR_FRAMES = 100;
+/** Score per point of shield still standing when a panel falls. */
+export const CLEAR_BONUS_PER_SHIELD = 5;
 
 /** Level -> the panels it absorbs, in column order. */
 export const LEVELS: string[][] = [
@@ -89,7 +111,7 @@ let nextId = 1;
 ══════════════════════════════════════════════════════════ */
 
 type HarvestedLine = {
-    text: string; x: number; y: number; w: number; h: number; font: string;
+    text: string; x: number; y: number; w: number; h: number; font: string; green: boolean;
 };
 
 /**
@@ -119,6 +141,7 @@ function harvestLines(panel: HTMLElement): HarvestedLine[] {
         if (cs.visibility === "hidden" || cs.display === "none") continue;
         const family = cs.fontFamily.split(",")[0].replace(/["']/g, "").trim() || "monospace";
         const font = `${cs.fontWeight} ${cs.fontSize} ${family}, monospace`;
+        const green = isGreen(cs.color);
 
         let cur: { text: string; top: number; left: number; right: number; bottom: number } | null = null;
         for (let i = 0; i < raw.length; i++) {
@@ -133,7 +156,7 @@ function harvestLines(panel: HTMLElement): HarvestedLine[] {
                 if (cur && cur.text.trim()) {
                     out.push({
                         text: cur.text, x: cur.left, y: cur.top,
-                        w: cur.right - cur.left, h: cur.bottom - cur.top, font,
+                        w: cur.right - cur.left, h: cur.bottom - cur.top, font, green,
                     });
                 }
                 cur = { text: raw[i], top: r.top, left: r.left, right: r.right, bottom: r.bottom };
@@ -142,11 +165,51 @@ function harvestLines(panel: HTMLElement): HarvestedLine[] {
         if (cur && cur.text.trim()) {
             out.push({
                 text: cur.text, x: cur.left, y: cur.top,
-                w: cur.right - cur.left, h: cur.bottom - cur.top, font,
+                w: cur.right - cur.left, h: cur.bottom - cur.top, font, green,
             });
         }
     }
     return out;
+}
+
+/**
+ * Resolve any CSS colour to RGBA by painting one pixel.
+ *
+ * getComputedStyle returns oklab()/lab() under Tailwind v4, which no amount of
+ * string parsing handles cleanly. Letting the browser rasterise it works for
+ * every colour syntax it supports. Results are cached — this runs over every
+ * element of a panel.
+ */
+const colorCache = new Map<string, [number, number, number, number]>();
+let probe: CanvasRenderingContext2D | null | undefined;
+
+function toRgba(css: string): [number, number, number, number] {
+    const cached = colorCache.get(css);
+    if (cached) return cached;
+    if (probe === undefined) {
+        const c = document.createElement("canvas");
+        c.width = c.height = 1;
+        probe = c.getContext("2d", { willReadFrequently: true });
+    }
+    let out: [number, number, number, number] = [0, 0, 0, 0];
+    if (probe) {
+        probe.clearRect(0, 0, 1, 1);
+        // An unparseable value leaves fillStyle untouched, so seed a sentinel
+        // that cannot be mistaken for green.
+        probe.fillStyle = "#000000";
+        probe.fillStyle = css;
+        probe.fillRect(0, 0, 1, 1);
+        const d = probe.getImageData(0, 0, 1, 1).data;
+        out = [d[0], d[1], d[2], d[3]];
+    }
+    colorCache.set(css, out);
+    return out;
+}
+
+/** Green enough to read as "alive" — the ONLINE dot, CURRENT/LIVE badges, both-cells. */
+export function isGreen(css: string): boolean {
+    const [r, g, b, a] = toRgba(css);
+    return a > 40 && g > 80 && g > r * 1.3 && g > b * 1.3;
 }
 
 /** Letters and digits only — used to reject punctuation-sized debris. */
@@ -188,8 +251,9 @@ export function harvestPanel(panel: HTMLElement, speed: number, seek: number): R
                     id: nextId++, kind: "word", text: token,
                     x: cursor + tw / 2, y: l.y + l.h / 2, vx, vy,
                     rot: 0, vrot: (Math.random() - 0.5) * 0.03,
-                    w: Math.max(tw, 6), h: l.h, font: l.font, color: kindColor("word"),
-                    damage: 5, heals: false, seek,
+                    w: Math.max(tw, 6), h: l.h, font: l.font,
+                    color: l.green ? GREEN : kindColor("word"),
+                    damage: l.green ? 0 : 5, heals: l.green, seek,
                 });
             }
             cursor += tw;
@@ -214,6 +278,26 @@ export function harvestPanel(panel: HTMLElement, speed: number, seek: number): R
             color: heals ? GREEN : `rgba(255,149,0,${tier})`,
             damage: heals ? 0 : Math.round(8 + tier * 22),
             heals, seek: 0,
+        });
+    });
+
+    // Anything rendered green by background — the "both" legend swatch, the
+    // ONLINE dot, CURRENT / LIVE badges — becomes a health box too.
+    panel.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        if (el.hasAttribute("data-day-cell")) return;       // already handled above
+        if (el.closest("[data-no-harvest]")) return;
+        if (el.closest("[data-panel-header]")) return;
+        const cs = getComputedStyle(el);
+        if (!isGreen(cs.backgroundColor) && !isGreen(cs.borderTopColor)) return;
+        const r = el.getBoundingClientRect();
+        if (r.width < 3 || r.height < 3 || r.width > 80 || r.height > 80) return;
+        const { vx, vy } = drift(speed * 0.7);
+        rocks.push({
+            id: nextId++, kind: "cell", text: "",
+            x: r.left + r.width / 2, y: r.top + r.height / 2, vx, vy,
+            rot: 0, vrot: (Math.random() - 0.5) * 0.03,
+            w: Math.max(r.width, 10), h: Math.max(r.height, 10), font: "",
+            color: GREEN, damage: 0, heals: true, seek: 0,
         });
     });
 
@@ -313,6 +397,10 @@ export function hits(r: Rock, x: number, y: number, pad = 0): boolean {
     const hw = Math.max(r.w, MIN_HIT) / 2 + pad;
     const hh = Math.max(r.h, MIN_HIT) / 2 + pad;
     return x >= r.x - hw && x <= r.x + hw && y >= r.y - hh && y <= r.y + hh;
+}
+
+export function floater(x: number, y: number, text: string, color: string): Floater {
+    return { x, y, vy: -0.7, life: 55, max: 55, text, color };
 }
 
 export function burst(x: number, y: number, color: string, n: number): Particle[] {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vedansh Sharma">
+  <!--
+    Terminal-aesthetic mark: amber V on CRT black, matching the site palette
+    (#0a0804 screen, #ff9500 phosphor). The V is a stroked path rather than
+    text so it never depends on a font being available.
+  -->
+  <rect width="512" height="512" rx="96" fill="#0a0804"/>
+  <rect x="8" y="8" width="496" height="496" rx="88" fill="none"
+        stroke="#ff9500" stroke-opacity="0.28" stroke-width="10"/>
+  <polyline points="150,150 256,352 362,150" fill="none" stroke="#ff9500"
+            stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="216" y="392" width="80" height="26" rx="6" fill="#ff9500" fill-opacity="0.55"/>
+</svg>

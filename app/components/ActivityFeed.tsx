@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { ActivityDay, TILPost, DayCell, LastCommit } from "../types/activity";
+import type { ActivityDay, TILPost, DayCell, LastCommit, RepoActivityWindows, WindowActivity } from "../types/activity";
 
 /* ══════════════════════════════════════════════════════════
    TYPES
@@ -213,6 +213,7 @@ export function ActivityFeed({
     mode = "compact",
     loading = false,
     lastCommit = null,
+    repoActivity = null,
 }: {
     theme: Theme;
     githubData: ActivityDay[];
@@ -220,6 +221,7 @@ export function ActivityFeed({
     mode?: FeedMode;
     loading?: boolean;
     lastCommit?: LastCommit | null;
+    repoActivity?: RepoActivityWindows | null;
 }) {
     const t = C[theme];
     const [isMobile, setIsMobile] = useState(false);
@@ -270,6 +272,9 @@ export function ActivityFeed({
         })),
         ...tilData.map((d) => ({ date: d.date, isTil: true, text: d.title })),
     ].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+
+    // Repo breakdown for whichever range the grid is showing.
+    const window_ = mode === "full" ? repoActivity?.month ?? null : repoActivity?.week ?? null;
 
     const handleHover = useCallback((c: DayCell, r: DOMRect) => setTip({ cell: c, rect: r }), []);
     const handleLeave = useCallback(() => setTip(null), []);
@@ -352,44 +357,141 @@ export function ActivityFeed({
                 </span>
             </div>
 
-            {/* ── LAST ACTIVITY TICKER ── */}
+            {/* ── WORKED ON ── */}
             {!loading && (
-                <div style={{
-                    color: t.label, borderTop: `1px solid ${t.sep}`, paddingTop: 4,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>
-                    {/* Real commit from GitHub API */}
-                    {lastCommit ? (
-                        <>
-                            <span style={{ color: t.commit }}>{t.pfxPush}</span>
-                            {" \""}
-                            {lastCommit.message}
-                            {"\" → "}
-                            {lastCommit.repo}
-                            <span style={{ opacity: 0.35 }}> · {relTime(lastCommit.date)}</span>
-                        </>
-                    ) : lastFromData ? (
-                        /* Fallback: last activity from the data we have */
-                        <>
-                            <span style={{ color: lastFromData.isTil ? t.til : t.commit }}>
-                                {lastFromData.isTil ? t.pfxTIL : t.pfxPush}
-                            </span>
-                            {" "}{lastFromData.text}
-                            <span style={{ opacity: 0.35 }}> · {relTime(lastFromData.date + "T12:00:00Z")}</span>
-                        </>
-                    ) : null}
+                <div style={{ borderTop: `1px solid ${t.sep}`, paddingTop: 4 }}>
+                    <WorkedOn
+                        theme={theme}
+                        window={window_}
+                        mode={mode}
+                        lastCommit={lastCommit}
+                        lastFromData={lastFromData}
+                    />
                 </div>
             )}
 
             {/* Loading ticker placeholder */}
             {loading && (
                 <div style={{ color: t.label, borderTop: `1px solid ${t.sep}`, paddingTop: 4, opacity: 0.35 }}>
-                    fetching last commit…
+                    fetching activity…
                 </div>
             )}
 
             {/* Tooltip (fixed-position, escapes overflow:hidden panels) */}
             <Tooltip tip={tip} theme={theme} isMobile={isMobile} />
+        </div>
+    );
+}
+
+/* ══════════════════════════════════════════════════════════
+   WORKED ON — what the window's commits actually went into
+══════════════════════════════════════════════════════════ */
+
+function WorkedOn({
+    theme,
+    window: win,
+    mode,
+    lastCommit,
+    lastFromData,
+}: {
+    theme: Theme;
+    window: WindowActivity | null;
+    mode: FeedMode;
+    lastCommit: LastCommit | null;
+    lastFromData: { date: string; isTil: boolean; text: string } | null;
+}) {
+    const t = C[theme];
+    const maxRepos = mode === "full" ? 6 : 3;
+    const repos = win?.repos ?? [];
+    const shown = repos.slice(0, maxRepos);
+    const hidden = repos.length - shown.length;
+    const privateCommits = win?.privateCommits ?? 0;
+
+    const label = mode === "full" ? "WORKED ON · 28d" : "WORKED ON · 7d";
+    const ellipsis: React.CSSProperties = {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    };
+
+    // Nothing attributable in the window — fall back to the most recent known
+    // push so the panel still says something true.
+    if (shown.length === 0 && privateCommits === 0) {
+        return (
+            <div style={{ color: t.label, ...ellipsis }}>
+                {lastCommit ? (
+                    <>
+                        <span style={{ color: t.commit }}>{t.pfxPush}</span>
+                        {" \""}
+                        {lastCommit.message}
+                        {"\" → "}
+                        {lastCommit.repo}
+                        <span style={{ opacity: 0.35 }}> · {relTime(lastCommit.date)}</span>
+                    </>
+                ) : lastFromData ? (
+                    <>
+                        <span style={{ color: lastFromData.isTil ? t.til : t.commit }}>
+                            {lastFromData.isTil ? t.pfxTIL : t.pfxPush}
+                        </span>{" "}
+                        {lastFromData.text}
+                        <span style={{ opacity: 0.35 }}>
+                            {" "}· {relTime(lastFromData.date + "T12:00:00Z")}
+                        </span>
+                    </>
+                ) : (
+                    <span style={{ opacity: 0.4 }}>no activity in this range</span>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ color: t.label, opacity: 0.5, letterSpacing: 0.5 }}>{label}</div>
+
+            {shown.map((r) => (
+                <a
+                    key={r.repo}
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        color: t.label,
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 5,
+                        ...ellipsis,
+                    }}
+                    title={r.lastMessage ? `${r.repo} — ${r.lastMessage}` : r.repo}
+                >
+                    <span style={{ color: t.commit, flexShrink: 0, opacity: 0.55 }}>▸</span>
+                    <span style={{ color: t.commit, flexShrink: 0 }}>{r.name}</span>
+                    <span style={{ opacity: 0.45, flexShrink: 0 }}>
+                        {r.commits}c
+                    </span>
+                    {r.lastMessage && (
+                        <span style={{ opacity: 0.35, ...ellipsis }}>· {r.lastMessage}</span>
+                    )}
+                </a>
+            ))}
+
+            {hidden > 0 && (
+                <div style={{ color: t.label, opacity: 0.35 }}>
+                    + {hidden} more {hidden === 1 ? "repo" : "repos"}
+                </div>
+            )}
+
+            {privateCommits > 0 && (
+                <div
+                    style={{ color: t.label, opacity: 0.45, ...ellipsis }}
+                    title="Commits to private repositories. They count toward the contribution graph, but GitHub does not disclose which repository they belong to."
+                >
+                    <span style={{ opacity: 0.6 }}>◆</span> {privateCommits} private{" "}
+                    {privateCommits === 1 ? "contribution" : "contributions"}
+                    <span style={{ opacity: 0.6 }}> · repos undisclosed</span>
+                </div>
+            )}
         </div>
     );
 }

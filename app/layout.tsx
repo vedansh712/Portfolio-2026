@@ -5,12 +5,18 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Vedansh Sharma — Full Stack Developer",
   description:
-    "Portfolio of Vedansh Sharma — Full Stack Developer crafting digital experiences with modern technologies. React, Next.js, Node.js, Python, and more.",
+    "Portfolio of Vedansh Sharma — Full Stack Developer building scalable web and mobile products. Java, Spring Boot, React, Next.js, Node.js, Python, React Native, and AI-integrated features.",
   keywords: [
     "Vedansh Sharma",
     "Full Stack Developer",
+    "Software Developer",
+    "Java",
+    "Spring Boot",
     "React",
     "Next.js",
+    "React Native",
+    "Python",
+    "FastAPI",
     "Portfolio",
     "Web Developer",
   ],

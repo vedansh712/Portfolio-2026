@@ -6,222 +6,22 @@ import { useState, useEffect, useCallback } from "react";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { useActivityData } from "../hooks/useActivityData";
 import type { LastCommit } from "../types/activity";
+import {
+    PROFILE,
+    CONTACT_LIST,
+    EXPERIENCE,
+    PROJECTS,
+    SKILLS,
+    TICKER_ITEMS,
+    LOG_ENTRIES,
+    LINK_KINDS,
+    type Job,
+    type Project,
+} from "../lib/portfolio";
 
 const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["300", "400", "500", "700"] });
 const sans = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
 
-/* ═══════════════════════════════════════════════
-   DATA — All real info from personal_info.md
-   ═══════════════════════════════════════════════ */
-
-const PROFILE = {
-    name: "VEDANSH SHARMA",
-    title: "Full Stack Developer",
-    tagline: "Crafting digital experiences with modern technologies — turning complex problems into seamless digital solutions.",
-    about: "Mechanical Engineering graduate turned self-taught Full Stack Developer. Confident in taking products from scratch to deployment. I build scalable web applications, AI-integrated products, and tools that make a real difference.",
-    aboutExtra: "Passionate about clean code, innovative solutions, and user-centered design. I thrive on continuous learning and creative problem-solving.",
-    location: "Uttarakhand, INDIA",
-    education: "B.Tech — Graphic Era University",
-    educationYears: "2019 - 2023",
-    status: "Open to opportunities",
-    focus: "Full-Stack · AI · Web Apps",
-    interests: "Long bike rides, exploring new places, creative problem solving.",
-    philosophy: "Clean, maintainable code · User-centered design · Continuous learning",
-    funFact: "Believes balance between adventure (bike rides) and creativity fuels better problem-solving.",
-};
-
-const CONTACT = {
-    email: { icon: "📧", label: "EMAIL", value: "vedanshsharma712@gmail.com", color: "#f43f5e", href: "mailto:vedanshsharma712@gmail.com" },
-    phone: { icon: "📱", label: "PHONE", value: "+91 9760108830", color: "#22c55e", href: "tel:+919760108830" },
-    github: { icon: "🐙", label: "GITHUB", value: "github.com/vedansh712", color: "#c9d1d9", href: "https://github.com/vedansh712" },
-    linkedin: { icon: "💼", label: "LINKEDIN", value: "linkedin.com/in/vedansh712", color: "#0a66c2", href: "https://www.linkedin.com/in/vedansh712/" },
-    resume: { icon: "📄", label: "RESUME", value: "Download Resume", color: "#f59e0b", href: "https://drive.google.com/file/d/19ZkM5WTKAD0POocpNzdRBtnQX6_MJfAc/view?usp=sharing" },
-};
-
-interface Job {
-    role: string;
-    company: string;
-    location: string;
-    period: string;
-    current: boolean;
-    color: string;
-    achievements: string[];
-}
-
-const EXPERIENCE: Job[] = [
-    {
-        role: "Full Stack Developer",
-        company: "DreamAlle Solutions",
-        location: "Remote",
-        period: "2024–2025",
-        current: true,
-        color: "#22c55e",
-        achievements: [
-            "Lead development of scalable web applications (0 to 10K+ users)",
-            "Architected microservices infrastructure and mentored junior developers",
-            "Reduced application load time by 30% through optimization",
-            "Designed dynamic prompt pipelines for integration with OpenAI's API",
-            "Led development on major product redesign to MVC principles",
-            "Built core platform features from scratch",
-            "Streamlined Git branching and code review practices",
-        ],
-    },
-    {
-        role: "Software Development Engineer",
-        company: "Akashalabdhi",
-        location: "IIT Roorkee",
-        period: "2023–2024",
-        current: false,
-        color: "#3b82f6",
-        achievements: [
-            "Created responsive websites and web applications for diverse clients",
-            "Launched dynamic company website that boosted traffic by 30% in three months",
-            "Implemented performance optimizations reducing load time by 20%",
-            "Built mobile app with user-centric features, improving engagement",
-            "Collaborated with design and business teams for market-aligned products",
-        ],
-    },
-    {
-        role: "Software Developer Intern",
-        company: "Convival Tech Hub",
-        location: "Remote",
-        period: "6 Months",
-        current: false,
-        color: "#f59e0b",
-        achievements: [
-            "Completed intensive training program",
-            "Built first production React application",
-            "Contributed to open-source projects",
-        ],
-    },
-];
-
-interface Project {
-    name: string;
-    shortDesc: string;
-    fullDesc: string;
-    techStack: string[];
-    status: string;
-    statusColor: string;
-    statusIcon: string;
-    liveLink?: string;
-    githubLink?: string;
-    highlights: string[];
-}
-
-const PROJECTS: Project[] = [
-    {
-        name: "Stocai",
-        shortDesc: "Full Stack AI Coaching Platform",
-        fullDesc: "Developed backend infrastructure and frontend for scalable applications. Optimized PostgreSQL schemas and OpenAI prompt refinement for intelligent coaching workflows.",
-        techStack: ["React", "Next.js", "Python", "PostgreSQL", "JWT", "OpenAI"],
-        status: "LIVE",
-        statusColor: "#22c55e",
-        statusIcon: "▲",
-        liveLink: "https://www.mystocai.com/",
-        highlights: [
-            "Scalable backend architecture with JWT auth",
-            "OpenAI prompt pipeline for AI coaching",
-            "PostgreSQL schema optimization for performance",
-            "Full-stack from design to deployment",
-        ],
-    },
-    {
-        name: "Activity Tracker",
-        shortDesc: "Browser Extension",
-        fullDesc: "Monitors and analyzes browsing activity with domain-level insights. Includes time limits, alerts, and smart content categorization. Published on the Microsoft Edge Add-ons Store.",
-        techStack: ["JavaScript", "HTML", "CSS", "Manifest V3", "Browser APIs"],
-        status: "PUBLISHED",
-        statusColor: "#22c55e",
-        statusIcon: "●",
-        liveLink: "https://microsoftedge.microsoft.com/addons/detail/llljlnkcpejaonlbbnodhfjblichghjf",
-        githubLink: "https://github.com/vedansh712/Activity-Tracker-extention",
-        highlights: [
-            "Published on Microsoft Edge Store",
-            "Domain-level browsing analytics",
-            "Smart content categorization system",
-            "Configurable time limits and alerts",
-        ],
-    },
-    {
-        name: "Akashalabdhi",
-        shortDesc: "Company Website",
-        fullDesc: "Launched dynamic company website on AWS, boosting traffic and significantly cutting page load time with performance optimizations.",
-        techStack: ["React", "TypeScript", "AWS", "Figma", "Git", "React Native"],
-        status: "LIVE",
-        statusColor: "#22c55e",
-        statusIcon: "▲",
-        liveLink: "https://akashalabdhi.space/",
-        highlights: [
-            "Boosted traffic by 30% in three months",
-            "Deployed on AWS infrastructure",
-            "Pixel-perfect implementation from Figma designs",
-            "Performance optimized — reduced load time by 20%",
-        ],
-    },
-];
-
-const SKILLS = [
-    {
-        cat: "Frontend",
-        items: [
-            { n: "React", c: "#61dafb", level: 95 },
-            { n: "Next.js", c: "#ffffff", level: 90 },
-            { n: "TypeScript", c: "#3178c6", level: 88 },
-            { n: "Tailwind CSS", c: "#38bdf8", level: 92 },
-        ],
-    },
-    {
-        cat: "Backend",
-        items: [
-            { n: "Node.js", c: "#68a063", level: 90 },
-            { n: "Python", c: "#ffd43b", level: 85 },
-            { n: "Express.js", c: "#ffffff", level: 88 },
-            { n: "REST APIs", c: "#f97316", level: 92 },
-        ],
-    },
-    {
-        cat: "Database",
-        items: [
-            { n: "MongoDB", c: "#47a248", level: 88 },
-            { n: "PostgreSQL", c: "#336791", level: 85 },
-            { n: "Redis", c: "#d82c20", level: 75 },
-            { n: "Firebase", c: "#ffca28", level: 80 },
-        ],
-    },
-    {
-        cat: "DevOps",
-        items: [
-            { n: "Docker", c: "#2496ed", level: 82 },
-            { n: "AWS", c: "#ff9900", level: 78 },
-            { n: "Git", c: "#f05032", level: 95 },
-            { n: "CI/CD", c: "#6366f1", level: 80 },
-        ],
-    },
-];
-
-const TICKER_ITEMS = [
-    { name: "REACT", v: "19.2", color: "#61dafb" },
-    { name: "NEXT.JS", v: "16.1", color: "#fff" },
-    { name: "TYPESCRIPT", v: "5.x", color: "#3178c6" },
-    { name: "NODE", v: "22", color: "#68a063" },
-    { name: "PYTHON", v: "3.12", color: "#ffd43b" },
-    { name: "POSTGRES", v: "16", color: "#336791" },
-    { name: "MONGODB", v: "7.0", color: "#47a248" },
-    { name: "DOCKER", v: "27", color: "#2496ed" },
-    { name: "AWS", v: "ACTIVE", color: "#ff9900" },
-    { name: "TAILWIND", v: "4.0", color: "#38bdf8" },
-    { name: "REDIS", v: "7.4", color: "#d82c20" },
-    { name: "EXPRESS", v: "4.x", color: "#ffffff" },
-];
-
-const LOG_ENTRIES = [
-    { t: "2025-01", m: "Shipped Stocai AI platform", lvl: "SHIP", c: "#06b6d4" },
-    { t: "2024-06", m: "Published Activity Tracker on Edge Store", lvl: "FEAT", c: "#f59e0b" },
-    { t: "2024-01", m: "Joined DreamAlle Solutions", lvl: "INFO", c: "#3b82f6" },
-    { t: "2023-08", m: "Launched Akashalabdhi website", lvl: "SHIP", c: "#06b6d4" },
-    { t: "2023-05", m: "Graduated — B.Tech, Graphic Era University", lvl: "INFO", c: "#3b82f6" },
-];
 
 /* ═══════════════════════════════════════════════
    HOOKS
@@ -359,25 +159,29 @@ function ProjectDetail({ project }: { project: Project }) {
                     ))}
                 </ul>
             </div>
-            <div className="border-t border-white/[0.06] pt-3 space-y-2">
-                <ModernLabel>Links</ModernLabel>
-                {project.liveLink && (
-                    <a href={project.liveLink} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-emerald-400/80 hover:text-emerald-300 transition-colors group">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400/60" />
-                        <span className="group-hover:underline">{project.liveLink.replace("https://", "")}</span>
-                        <span className="text-white/20 text-[9px]">↗ LIVE</span>
-                    </a>
-                )}
-                {project.githubLink && (
-                    <a href={project.githubLink} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-white/60 hover:text-white/90 transition-colors group">
-                        <span className="w-2 h-2 rounded-full bg-white/30" />
-                        <span className="group-hover:underline">{project.githubLink.replace("https://", "")}</span>
-                        <span className="text-white/20 text-[9px]">↗ GITHUB</span>
-                    </a>
-                )}
-            </div>
+            {project.links && project.links.length > 0 && (
+                <div className="border-t border-white/[0.06] pt-3 space-y-2">
+                    <ModernLabel>Links</ModernLabel>
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                        {project.links.map((link) => {
+                            const kind = LINK_KINDS[link.kind];
+                            return (
+                                <a
+                                    key={link.href}
+                                    href={link.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-white/[0.1] bg-white/[0.03] text-white/80 hover:border-white/25 hover:bg-white/[0.07] hover:text-white transition-colors"
+                                >
+                                    <span className="text-[11px] leading-none">{kind.icon}</span>
+                                    <span className="text-[10px]">{link.label ?? kind.label}</span>
+                                    <span className="text-white/25 text-[9px]">↗</span>
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </>
     );
 }
@@ -491,7 +295,9 @@ function Panel({
                     {clickable && <span className="text-[9px] text-white/20 md:hidden">TAP ↗</span>}
                 </div>
             </div>
-            <div className="flex-1 overflow-hidden p-3">{children}</div>
+            <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "none" }}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -749,7 +555,7 @@ export default function ModernTerminal() {
                         <div className="md:col-span-4 flex flex-col gap-2 min-h-0 overflow-hidden">
                             <Panel title="Contact" icon="✉️" accent="#f43f5e" className="shrink-0">
                                 <div className="space-y-2 text-[10px]">
-                                    {Object.values(CONTACT).map((c) => (
+                                    {CONTACT_LIST.map((c) => (
                                         <div key={c.label} className="flex items-center gap-2">
                                             <span>{c.icon}</span>
                                             <span className="text-white/25 w-14 shrink-0 text-[9px]">{c.label}</span>
@@ -780,6 +586,10 @@ export default function ModernTerminal() {
 
                             <Panel title="Personal" icon="❤️" accent="#f59e0b" className="shrink-0">
                                 <div className="space-y-2 text-[10px]">
+                                    <div>
+                                        <span className="text-white/25 text-[9px] font-semibold uppercase tracking-wider">Certification</span>
+                                        <p className="text-white/50 mt-0.5">{PROFILE.certification}</p>
+                                    </div>
                                     <div>
                                         <span className="text-white/25 text-[9px] font-semibold uppercase tracking-wider">Interests</span>
                                         <p className="text-white/50 mt-0.5">{PROFILE.interests}</p>

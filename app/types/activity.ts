@@ -23,3 +23,32 @@ export type LastCommit = {
     repo: string;      // repository name
     date: string;      // ISO 8601 string (committedDate)
 };
+
+/** One repository worked on inside a time window. */
+export type RepoActivity = {
+    repo: string;      // "owner/name"
+    name: string;      // short name
+    url: string;
+    commits: number;   // your commits in the window
+    lastMessage: string; // most recent commit subject in the window ("" if unavailable)
+    lastDate: string;    // ISO 8601 ("" if unavailable)
+};
+
+/**
+ * What was worked on during a window.
+ *
+ * `privateCommits` is GitHub's `restrictedContributionsCount`: commits to
+ * private repos that count toward the graph but which a read:user token is
+ * not allowed to attribute to a named repository. Surfacing the number keeps
+ * a busy private week from rendering as an empty list.
+ */
+export type WindowActivity = {
+    repos: RepoActivity[];
+    privateCommits: number;
+    total: number;
+};
+
+export type RepoActivityWindows = {
+    week: WindowActivity;
+    month: WindowActivity;
+};

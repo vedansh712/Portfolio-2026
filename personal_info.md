@@ -112,12 +112,15 @@ Building **EduVizio** — a multi-tenant school ERP / SIS. Java 21 + Spring Boot
 ### 2. **Track Daily** (Privacy-First Chrome Extension — Browsing Time Analytics)
 - **Description:** A Manifest V3 Chrome extension that measures how time is actually spent in the browser and turns it into analytics — daily/weekly/monthly dashboards, a zoomable day timeline, a focus score, and per-video and per-channel YouTube breakdowns. Zero network requests to any third party; all data lives in IndexedDB on the user's machine and is wipeable from the options page. ~10k lines, strictly layered, 228 dependency-free unit tests.
 - **Tech Stack:** Vanilla JS, Manifest V3, Service Workers, IndexedDB, Chart.js, Gemini Nano (on-device)
+- **GitHub:** [browser_activity_monitoring](https://github.com/vedansh712/browser_activity_monitoring)
 - **Status:** In development
 
 ### 3. **Laya** (Couples & Relationships App)
 - **Description:** A mobile app for couples to build daily connection habits through interactive shared messages, photos and gamified experiences.
 - **Tech Stack:** React Native, Expo, Python, FastAPI, Firebase
-- **Status:** In development
+- **Android App:** [Play Store](https://play.google.com/store/apps/details?id=com.laya.laya&hl=en_IN)
+- **Instagram:** [@layacouples](https://www.instagram.com/layacouples/)
+- **Status:** Live
 
 ### 4. **Stocai** (Full Stack AI Coaching Platform)
 - **Description:** Developed backend infrastructure and frontend for scalable applications. Optimized PostgreSQL schemas and OpenAI prompt refinement.

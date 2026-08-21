@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect, useCallback } from "react";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { useActivityData } from "../hooks/useActivityData";
-import type { LastCommit } from "../types/activity";
+import type { ActivityState } from "../hooks/useActivityData";
 import {
     PROFILE,
     CONTACT_LIST,
@@ -61,7 +61,7 @@ function DetailModal({
 }: {
     content: ModalContent;
     onClose: () => void;
-    activityProps: { githubData: Parameters<typeof ActivityFeed>[0]["githubData"]; tilData: Parameters<typeof ActivityFeed>[0]["tilData"]; lastCommit: LastCommit | null; loading: boolean };
+    activityProps: ActivityState;
 }) {
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -121,6 +121,7 @@ function DetailModal({
                             githubData={activityProps.githubData}
                             tilData={activityProps.tilData}
                             lastCommit={activityProps.lastCommit}
+                            repoActivity={activityProps.repoActivity}
                             loading={activityProps.loading}
                             mode="full"
                         />
@@ -579,6 +580,7 @@ export default function ModernTerminal() {
                                     githubData={activity.githubData}
                                     tilData={activity.tilData}
                                     lastCommit={activity.lastCommit}
+                    repoActivity={activity.repoActivity}
                                     loading={activity.loading}
                                     mode="compact"
                                 />

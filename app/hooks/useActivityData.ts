@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ActivityDay, TILPost, LastCommit } from "../types/activity";
+import type { ActivityDay, TILPost, LastCommit, RepoActivityWindows } from "../types/activity";
 import { mockGithubData, mockTILPosts } from "../lib/mockActivity";
 
 export type ActivityState = {
     githubData: ActivityDay[];
     tilData: TILPost[];
     lastCommit: LastCommit | null;
+    repoActivity: RepoActivityWindows | null;
     loading: boolean;
 };
 
@@ -16,6 +17,7 @@ export function useActivityData(): ActivityState {
         githubData: [],
         tilData: [],
         lastCommit: null,
+        repoActivity: null,
         loading: true,
     });
 
@@ -27,12 +29,13 @@ export function useActivityData(): ActivityState {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
             })
-            .then((data: { github: ActivityDay[] | null; tils: TILPost[]; lastCommit: LastCommit | null }) => {
+            .then((data: { github: ActivityDay[] | null; tils: TILPost[]; lastCommit: LastCommit | null; repoActivity: RepoActivityWindows | null }) => {
                 if (cancelled) return;
                 setState({
                     githubData: data.github ?? mockGithubData,
                     tilData: data.tils?.length ? data.tils : mockTILPosts,
                     lastCommit: data.lastCommit ?? null,
+                    repoActivity: data.repoActivity ?? null,
                     loading: false,
                 });
             })
@@ -42,6 +45,7 @@ export function useActivityData(): ActivityState {
                     githubData: mockGithubData,
                     tilData: mockTILPosts,
                     lastCommit: null,
+                    repoActivity: null,
                     loading: false,
                 });
             });

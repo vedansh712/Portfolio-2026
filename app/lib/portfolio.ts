@@ -133,7 +133,7 @@ export const EXPERIENCE: Job[] = [
  * A project link is presented by what it *is* ("Website", "Play Store"), not by
  * its raw URL — several of these URLs are long or opaque.
  */
-export type ProjectLinkKind = "website" | "app" | "extension" | "github";
+export type ProjectLinkKind = "website" | "app" | "extension" | "github" | "instagram";
 
 export interface ProjectLink {
   kind: ProjectLinkKind;
@@ -148,6 +148,7 @@ export const LINK_KINDS: Record<ProjectLinkKind, { icon: string; label: string }
   app: { icon: "📱", label: "App" },
   extension: { icon: "🧩", label: "Extension" },
   github: { icon: "🐙", label: "GitHub" },
+  instagram: { icon: "📷", label: "Instagram" },
 };
 
 export interface Project {
@@ -213,6 +214,9 @@ export const PROJECTS: Project[] = [
     status: "IN DEVELOPMENT",
     statusIcon: "◆",
     statusColor: "#f59e0b",
+    links: [
+      { kind: "github", href: "https://github.com/vedansh712/browser_activity_monitoring" },
+    ],
     highlights: [
       "Zero third-party network requests — all data local to the browser and user-wipeable at any time",
       "MV3 service worker attributes time per tab, pauses on idle and screen lock, and clamps sleep gaps so a closed laptop never logs phantom hours",
@@ -228,9 +232,17 @@ export const PROJECTS: Project[] = [
     fullDesc:
       "A mobile app for couples to build daily connection habits through interactive shared messages, photos and gamified experiences. React Native client with a Python backend.",
     techStack: ["React Native", "Expo", "Python", "FastAPI", "Firebase"],
-    status: "IN DEVELOPMENT",
-    statusIcon: "◆",
-    statusColor: "#f59e0b",
+    status: "LIVE",
+    statusIcon: "▲",
+    statusColor: "#22c55e",
+    links: [
+      {
+        kind: "app",
+        label: "Play Store",
+        href: "https://play.google.com/store/apps/details?id=com.laya.laya&hl=en_IN",
+      },
+      { kind: "instagram", href: "https://www.instagram.com/layacouples/" },
+    ],
     highlights: [
       "Daily connection habits built around shared prompts and streaks",
       "Interactive shared messages and photo moments between partners",

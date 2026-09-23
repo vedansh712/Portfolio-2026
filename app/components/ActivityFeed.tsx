@@ -177,6 +177,9 @@ function GridCell({
     return (
         <div
             ref={ref}
+            data-day-cell=""
+            data-cell-type={cell.type}
+            data-cell-total={cell.total}
             style={{ width: size, height: size, flexShrink: 0, background: cellBg(cell, theme), cursor: "crosshair" }}
             onMouseEnter={handleEnter}
             onMouseLeave={onLeave}

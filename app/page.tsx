@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from "react";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { useActivityData } from "./hooks/useActivityData";
 import type { ActivityState } from "./hooks/useActivityData";
+import dynamic from "next/dynamic";
+import { PlayShip } from "./components/asteroids/PlayShip";
 import {
   PROFILE,
   CONTACT,
@@ -18,6 +20,9 @@ import {
   type Job,
   type Project,
 } from "./lib/portfolio";
+
+// Game engine is lazy — it must never weigh down first paint.
+const Asteroids = dynamic(() => import("./components/asteroids/Asteroids"), { ssr: false });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
@@ -413,11 +418,12 @@ function Panel({
 }) {
   return (
     <div
-      className={`border border-amber-500/25 bg-black/40 flex flex-col overflow-hidden ${clickable ? "cursor-pointer hover:border-amber-500/40 hover:bg-amber-500/[0.03] transition-all duration-200" : ""
+      data-panel={title}
+      className={`relative border border-amber-500/25 bg-black/40 flex flex-col overflow-hidden ${clickable ? "cursor-pointer hover:border-amber-500/40 hover:bg-amber-500/[0.03] transition-all duration-200" : ""
         } ${className}`}
       onClick={onClick}
     >
-      <div className="flex items-center justify-between px-2 py-0.5 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
+      <div data-panel-header="" className="flex items-center justify-between px-2 py-0.5 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
         <span className="text-[10px] font-bold tracking-wider text-amber-400/80 uppercase">
           {title}
         </span>
@@ -433,7 +439,7 @@ function Panel({
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2" style={{ scrollbarWidth: "none" }}>
+      <div data-panel-body="" className="flex-1 overflow-y-auto p-2" style={{ scrollbarWidth: "none" }}>
         {children}
       </div>
     </div>
@@ -531,6 +537,9 @@ export default function BloombergTerminal() {
   const { time, date } = useClock();
   const [mounted, setMounted] = useState(false);
   const [modalContent, setModalContent] = useState<ModalContent>(null);
+  const [playing, setPlaying] = useState(false);
+  const startGame = useCallback(() => setPlaying(true), []);
+  const stopGame = useCallback(() => setPlaying(false), []);
   const activity = useActivityData();
 
   useEffect(() => setMounted(true), []);
@@ -891,6 +900,7 @@ export default function BloombergTerminal() {
                   clickable
                   onClick={openActivity}
                 >
+                  <PlayShip onPlay={startGame} />
                   <ActivityFeed
                     theme="amber"
                     githubData={activity.githubData}
@@ -962,6 +972,9 @@ export default function BloombergTerminal() {
           </motion.div>
         </div>
       </div>
+
+      {/* ── THE FEED — the page becomes the asteroid field ── */}
+      {playing && <Asteroids active onExit={stopGame} />}
 
       {/* ── DETAIL MODAL ── */}
       <AnimatePresence>

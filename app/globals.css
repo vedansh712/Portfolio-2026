@@ -55,3 +55,15 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Blinking PLAY label on the Asteroids launcher */
+@keyframes astBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+.ast-blink {
+  animation: astBlink 1.1s steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ast-blink { animation: none; opacity: 0.85; }
+}

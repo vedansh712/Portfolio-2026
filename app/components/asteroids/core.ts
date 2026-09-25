@@ -36,6 +36,19 @@ export type Rock = {
 
 export type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
 
+/**
+ * The cabinet saucer. The large one fires roughly, the small one leads its shot
+ * at the ship — the same bargain as the original: more points, more danger.
+ */
+export type Saucer = {
+    x: number; y: number; vx: number; vy: number;
+    small: boolean;
+    /** frames until its next shot */
+    fireIn: number;
+    /** frames until it gives up and leaves */
+    life: number;
+};
+
 export type Particle = {
     x: number; y: number; vx: number; vy: number; life: number; max: number; color: string;
 };
@@ -51,6 +64,8 @@ export type Banner = {
     next: string | null;
     bonus: number;
     t: number;
+    /** set when this clear also crosses into a new level */
+    levelUp?: number;
 };
 
 export type Ship = {
@@ -61,7 +76,7 @@ export type Ship = {
     invuln: number;
 };
 
-export type Status = "idle" | "playing" | "clearing" | "dead" | "gameover";
+export type Status = "idle" | "playing" | "clearing" | "dead" | "gameover" | "victory";
 
 export type Game = {
     status: Status;
@@ -79,6 +94,15 @@ export type Game = {
     /** panels queued for this level, order shuffled */
     pending: string[];
     /** panel currently sliding its header away */
+    saucer: Saucer | null;
+    /** frames until the next saucer run */
+    saucerIn: number;
+    enemyBullets: Bullet[];
+    /** frames until hyperspace is available again */
+    hyperIn: number;
+    paused: boolean;
+    /** suppresses shake and flash for prefers-reduced-motion */
+    calm: boolean;
     banner: Banner | null;
     floaters: Floater[];
     /** decaying impact shake, in px */
@@ -92,10 +116,36 @@ export const AMBER = "#ff9500";
 export const GREEN = "#22c55e";
 export const MAX_SHIELD = 100;
 export const GREEN_SCORE_STEP = 500;
+export const SAUCER_MIN_GAP = 520;
+export const SAUCER_MAX_GAP = 1100;
+export const HYPER_COOLDOWN = 160;
+/** Chance a hyperspace jump destroys the ship, as in the cabinet. */
+export const HYPER_RISK = 0.12;
+/**
+ * Ceiling on live debris. Level 3 alone is ~212 words, and fully splitting them
+ * would be well over a thousand entities — past this the frame budget goes
+ * before the game does.
+ */
+export const MAX_ROCKS = 240;
+
 /** Frames the stage-clear banner holds before the next panel opens. */
 export const CLEAR_FRAMES = 100;
 /** Score per point of shield still standing when a panel falls. */
 export const CLEAR_BONUS_PER_SHIELD = 5;
+
+/**
+ * Per-level tuning. Kept as data so the difficulty curve can be read and
+ * adjusted in one place rather than hunted through the loop.
+ */
+export const LEVEL_TUNING = [
+    { speed: 0.42, seek: 0,      seekShare: 0,    label: "RIGHT COLUMN" },
+    { speed: 0.62, seek: 0.010,  seekShare: 0.35, label: "CENTRE COLUMN" },
+    { speed: 0.84, seek: 0.017,  seekShare: 0.70, label: "LEFT COLUMN" },
+] as const;
+
+export function tuningFor(level: number) {
+    return LEVEL_TUNING[Math.min(level, LEVEL_TUNING.length) - 1];
+}
 
 /** Level -> the panels it absorbs, in column order. */
 export const LEVELS: string[][] = [
@@ -235,7 +285,7 @@ function kindColor(kind: RockKind): string {
     }
 }
 
-export function harvestPanel(panel: HTMLElement, speed: number, seek: number): Rock[] {
+export function harvestPanel(panel: HTMLElement, speed: number, seek: number, seekShare = 0): Rock[] {
     const rocks: Rock[] = [];
 
     for (const l of harvestLines(panel)) {
@@ -253,7 +303,10 @@ export function harvestPanel(panel: HTMLElement, speed: number, seek: number): R
                     rot: 0, vrot: (Math.random() - 0.5) * 0.03,
                     w: Math.max(tw, 6), h: l.h, font: l.font,
                     color: l.green ? GREEN : kindColor("word"),
-                    damage: l.green ? 0 : 5, heals: l.green, seek,
+                    damage: l.green ? 0 : 5, heals: l.green,
+                    // Only a share of the field hunts; a screen where everything
+                    // homes in leaves nowhere to retreat to.
+                    seek: l.green || Math.random() > seekShare ? 0 : seek,
                 });
             }
             cursor += tw;
@@ -399,6 +452,48 @@ export function hits(r: Rock, x: number, y: number, pad = 0): boolean {
     return x >= r.x - hw && x <= r.x + hw && y >= r.y - hh && y <= r.y + hh;
 }
 
+export function spawnSaucer(f: Rect, level: number): Saucer {
+    // Small saucers become more likely as the portfolio falls.
+    const small = Math.random() < 0.2 + level * 0.18;
+    const fromLeft = Math.random() < 0.5;
+    const speed = (small ? 1.5 : 1.05) + level * 0.12;
+    return {
+        x: fromLeft ? f.x - 18 : f.x + f.w + 18,
+        y: f.y + 24 + Math.random() * Math.max(1, f.h - 48),
+        vx: fromLeft ? speed : -speed,
+        vy: (Math.random() - 0.5) * 0.35,
+        small,
+        fireIn: small ? 55 : 80,
+        life: 900,
+    };
+}
+
+export function saucerScore(s: Saucer): number {
+    return s.small ? 1000 : 200;
+}
+
+/** Returns true once the saucer has left the field and should be dropped. */
+export function stepSaucer(s: Saucer, f: Rect, dt: number): boolean {
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    // Bounce vertically so it stays on screen while it crosses.
+    if (s.y < f.y + 12) { s.y = f.y + 12; s.vy = Math.abs(s.vy); }
+    if (s.y > f.y + f.h - 12) { s.y = f.y + f.h - 12; s.vy = -Math.abs(s.vy); }
+    s.life -= dt;
+    s.fireIn -= dt;
+    const gone = s.vx > 0 ? s.x > f.x + f.w + 30 : s.x < f.x - 30;
+    return gone || s.life <= 0;
+}
+
+/** A saucer shot: the small one aims, the large one sprays. */
+export function saucerShot(s: Saucer, ship: Ship, level: number): Bullet {
+    const spread = s.small ? 0.16 : 0.9;
+    const base = Math.atan2(ship.y - s.y, ship.x - s.x);
+    const a = base + (Math.random() - 0.5) * spread;
+    const sp = 3.1 + level * 0.25;
+    return { x: s.x, y: s.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 150 };
+}
+
 export function floater(x: number, y: number, text: string, color: string): Floater {
     return { x, y, vy: -0.7, life: 55, max: 55, text, color };
 }
@@ -421,6 +516,31 @@ export function shuffle<T>(a: T[]): T[] {
         [out[i], out[j]] = [out[j], out[i]];
     }
     return out;
+}
+
+/**
+ * Re-map every moving thing from one field rect into another, proportionally.
+ * Used when the window resizes mid-run: the harvested geometry was frozen at
+ * the old layout, so without this the debris detaches from the panels it came
+ * from.
+ */
+export function rescaleField(g: Game, next: Rect) {
+    const old = g.field;
+    if (old.w <= 0 || old.h <= 0 || next.w <= 0 || next.h <= 0) return;
+    const sx = next.w / old.w;
+    const sy = next.h / old.h;
+    const map = (o: { x: number; y: number }) => {
+        o.x = next.x + (o.x - old.x) * sx;
+        o.y = next.y + (o.y - old.y) * sy;
+    };
+    g.rocks.forEach((r) => { map(r); r.w *= sx; r.h *= sy; r.sprite = undefined; });
+    g.bullets.forEach(map);
+    g.enemyBullets.forEach(map);
+    g.particles.forEach(map);
+    g.floaters.forEach(map);
+    if (g.saucer) map(g.saucer);
+    map(g.ship);
+    g.field = next;
 }
 
 export function unionRect(a: Rect, b: Rect): Rect {

@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
     AMBER, GREEN, MAX_SHIELD, GREEN_SCORE_STEP, LEVELS,
-    CLEAR_FRAMES, CLEAR_BONUS_PER_SHIELD,
+    CLEAR_FRAMES, CLEAR_BONUS_PER_SHIELD, tuningFor,
+    SAUCER_MIN_GAP, SAUCER_MAX_GAP, HYPER_COOLDOWN, HYPER_RISK,
+    spawnSaucer, stepSaucer, saucerShot, saucerScore, MAX_ROCKS, rescaleField,
     harvestPanel, spawnGreen, split, scoreFor, stepRock, wrap, hits, burst, floater,
     shuffle, unionRect, rectOf,
-    type Game, type Rock,
+    type Game, type Rock, type Rect,
 } from "./core";
+import { EndScreen } from "./EndScreen";
 
 /* ══════════════════════════════════════════════════════════
    SPRITES — text is rasterised once, then blitted each frame.
@@ -42,7 +45,9 @@ export default function Asteroids({
     const [hud, setHud] = useState({
         score: 0, lives: 3, shield: MAX_SHIELD, level: 1, panelsDone: 0, panelsTotal: 3,
     });
-    const [over, setOver] = useState(false);
+    const [done, setDone] = useState<null | "gameover" | "victory">(null);
+    const [run, setRun] = useState(0);
+    const [paused, setPaused] = useState(false);
     const exitRef = useRef(onExit);
     useEffect(() => { exitRef.current = onExit; }, [onExit]);
 
@@ -59,10 +64,8 @@ export default function Asteroids({
     const consume = useCallback((panelName: string, g: Game) => {
         const panel = document.querySelector<HTMLElement>(`[data-panel="${panelName}"]`);
         if (!panel) return;
-        const speed = 0.25 + g.level * 0.18;
-        const seek = g.level >= 2 ? (g.level - 1) * 0.006 : 0;
-
-        g.rocks.push(...harvestPanel(panel, speed, seek));
+        const tune = tuningFor(g.level);
+        g.rocks.push(...harvestPanel(panel, tune.speed, tune.seek, tune.seekShare));
         g.field = unionRect(g.field, rectOf(panel));
 
         const body = panel.querySelector<HTMLElement>("[data-panel-body]");
@@ -85,6 +88,8 @@ export default function Asteroids({
     useEffect(() => {
         if (!active) return;
 
+        restore();
+
         const startPanel = document.querySelector<HTMLElement>('[data-panel="ACTIVITY"]');
         if (!startPanel) { exitRef.current(); return; }
 
@@ -101,6 +106,12 @@ export default function Asteroids({
             bullets: [], rocks: [], particles: [],
             score: 0, lives: 3, shield: MAX_SHIELD, level: 1,
             cleared: [], pending: [],
+            saucer: null,
+            saucerIn: SAUCER_MIN_GAP,
+            enemyBullets: [],
+            hyperIn: 0,
+            paused: false,
+            calm: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
             banner: null, floaters: [], shake: 0, flash: 0, lastGreenScore: 0,
         };
         gameRef.current = g;
@@ -117,13 +128,36 @@ export default function Asteroids({
             gameRef.current = null;
             restore();
         };
-    }, [active, consume, restore]);
+    }, [active, consume, restore, run]);
 
     /* ── input ── */
     useEffect(() => {
         if (!active) return;
         const down = (e: KeyboardEvent) => {
+            const g = gameRef.current;
             if (e.key === "Escape") { exitRef.current(); return; }
+            if ((e.key === "p" || e.key === "P") && g) { g.paused = !g.paused; return; }
+            if (e.key === "Shift" && g && g.status === "playing" && g.hyperIn <= 0) {
+                // Hyperspace: escape anywhere, at the cabinet's price.
+                g.hyperIn = HYPER_COOLDOWN;
+                g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
+                g.ship.x = g.field.x + 20 + Math.random() * Math.max(1, g.field.w - 40);
+                g.ship.y = g.field.y + 20 + Math.random() * Math.max(1, g.field.h - 40);
+                g.ship.vx = g.ship.vy = 0;
+                if (Math.random() < HYPER_RISK) {
+                    g.lives -= 1;
+                    g.shield = MAX_SHIELD;
+                    g.ship.invuln = 110;
+                    g.particles.push(...burst(g.ship.x, g.ship.y, "#ef4444", 34));
+                    g.floaters.push(floater(g.ship.x, g.ship.y - 14, "MISJUMP", "#ef4444"));
+                    if (!g.calm) { g.shake = 20; g.flash = 1; }
+                    if (g.lives <= 0) { g.status = "gameover"; setDone("gameover"); }
+                } else {
+                    g.ship.invuln = Math.max(g.ship.invuln, 30);
+                    g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
+                }
+                return;
+            }
             const k = e.key;
             if ([" ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) e.preventDefault();
             keysRef.current[k] = true;
@@ -153,6 +187,19 @@ export default function Asteroids({
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Geometry was frozen at the old layout; re-derive the field from
+            // the panels we have taken and carry the debris across with it.
+            const g = gameRef.current;
+            if (!g || g.cleared.length === 0) return;
+            let next: Rect | null = null;
+            for (const name of g.cleared) {
+                const el = document.querySelector<HTMLElement>(`[data-panel="${name}"]`);
+                if (!el) continue;
+                const r = rectOf(el);
+                next = next ? unionRect(next, r) : r;
+            }
+            if (next && next.w > 10 && next.h > 10) rescaleField(g, next);
         };
         resize();
 
@@ -184,6 +231,8 @@ export default function Asteroids({
 
             const keys = keysRef.current;
             const s = g.ship;
+            if (g.paused) { rafRef.current = requestAnimationFrame(frame); return; }
+            if (g.hyperIn > 0) g.hyperIn -= dt;
 
             if (g.status === "playing") {
                 /* ship */
@@ -226,6 +275,34 @@ export default function Asteroids({
                 /* rocks */
                 for (const r of g.rocks) stepRock(r, s, g.field, dt);
 
+                /* saucer */
+                if (!g.saucer) {
+                    g.saucerIn -= dt;
+                    if (g.saucerIn <= 0 && g.rocks.length > 0) {
+                        g.saucer = spawnSaucer(g.field, g.level);
+                    }
+                } else {
+                    const left = stepSaucer(g.saucer, g.field, dt);
+                    if (g.saucer.fireIn <= 0) {
+                        g.enemyBullets.push(saucerShot(g.saucer, s, g.level));
+                        g.saucer.fireIn = (g.saucer.small ? 52 : 78) - g.level * 5;
+                    }
+                    if (left) {
+                        g.saucer = null;
+                        g.saucerIn = SAUCER_MIN_GAP + Math.random() * (SAUCER_MAX_GAP - SAUCER_MIN_GAP);
+                    }
+                }
+
+                /* saucer fire */
+                for (const b of g.enemyBullets) {
+                    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+                }
+                g.enemyBullets = g.enemyBullets.filter(
+                    (b) => b.life > 0 &&
+                        b.x > g.field.x - 20 && b.x < g.field.x + g.field.w + 20 &&
+                        b.y > g.field.y - 20 && b.y < g.field.y + g.field.h + 20
+                );
+
                 /* bullet -> rock */
                 outer:
                 for (let bi = g.bullets.length - 1; bi >= 0; bi--) {
@@ -237,10 +314,69 @@ export default function Asteroids({
                         g.rocks.splice(ri, 1);
                         g.score += scoreFor(r.kind);
                         g.particles.push(...burst(r.x, r.y, r.heals ? GREEN : AMBER, r.kind === "word" ? 9 : 5));
-                        const kids = split(r, 0.4 + g.level * 0.2);
+                        const room = Math.max(0, MAX_ROCKS - g.rocks.length);
+                        const kids = split(r, 0.4 + g.level * 0.2).slice(0, room);
                         for (const k of kids) k.sprite = makeSprite(k, dpr);
                         g.rocks.push(...kids);
                         continue outer;
+                    }
+                }
+
+                /* player bullet -> saucer */
+                if (g.saucer) {
+                    const sc = g.saucer;
+                    const rad = sc.small ? 9 : 14;
+                    for (let bi = g.bullets.length - 1; bi >= 0; bi--) {
+                        const b = g.bullets[bi];
+                        if (Math.abs(b.x - sc.x) > rad || Math.abs(b.y - sc.y) > rad * 0.6) continue;
+                        g.bullets.splice(bi, 1);
+                        const pts = saucerScore(sc);
+                        g.score += pts;
+                        g.particles.push(...burst(sc.x, sc.y, AMBER, 22));
+                        g.floaters.push(floater(sc.x, sc.y - 12, `+${pts}`, AMBER));
+                        g.saucer = null;
+                        g.saucerIn = SAUCER_MIN_GAP + Math.random() * (SAUCER_MAX_GAP - SAUCER_MIN_GAP);
+                        break;
+                    }
+                }
+
+                /* saucer fire / body -> ship */
+                if (s.invuln <= 0) {
+                    let struck = 0;
+                    for (let i = g.enemyBullets.length - 1; i >= 0; i--) {
+                        const b = g.enemyBullets[i];
+                        if (Math.abs(b.x - s.x) > 8 || Math.abs(b.y - s.y) > 8) continue;
+                        g.enemyBullets.splice(i, 1);
+                        struck += 18;
+                    }
+                    if (g.saucer) {
+                        const rad = g.saucer.small ? 11 : 16;
+                        if (Math.abs(g.saucer.x - s.x) < rad && Math.abs(g.saucer.y - s.y) < rad * 0.7) {
+                            struck += 30;
+                            g.saucer = null;
+                            g.saucerIn = SAUCER_MIN_GAP;
+                        }
+                    }
+                    if (struck > 0) {
+                        g.shield -= struck;
+                        g.particles.push(...burst(s.x, s.y, "#ef4444", 14));
+                        g.floaters.push(floater(s.x, s.y - 12, `-${struck}`, "#ef4444"));
+                        if (!g.calm) {
+                            g.shake = Math.min(16, g.shake + 4 + struck * 0.25);
+                            g.flash = Math.min(1, g.flash + 0.3);
+                        }
+                        s.invuln = 45;
+                        if (g.shield <= 0) {
+                            g.lives -= 1;
+                            g.shield = MAX_SHIELD;
+                            s.invuln = 110;
+                            s.x = g.field.x + g.field.w / 2;
+                            s.y = g.field.y + g.field.h / 2;
+                            s.vx = s.vy = 0;
+                            g.particles.push(...burst(s.x, s.y, AMBER, 40));
+                            if (!g.calm) { g.shake = 22; g.flash = 1; }
+                            if (g.lives <= 0) { g.status = "gameover"; setDone("gameover"); }
+                        }
                     }
                 }
 
@@ -263,8 +399,10 @@ export default function Asteroids({
                     g.particles.push(...burst(s.x, s.y, AMBER, 12));
                     g.floaters.push(floater(s.x, s.y - 12, `-${r.damage}`, "#ef4444"));
                     // Heavier hits shake harder, so damage is felt not just read.
-                    g.shake = Math.min(14, g.shake + 3 + r.damage * 0.3);
-                    g.flash = Math.min(1, g.flash + 0.25 + r.damage * 0.012);
+                    if (!g.calm) {
+                        g.shake = Math.min(14, g.shake + 3 + r.damage * 0.3);
+                        g.flash = Math.min(1, g.flash + 0.25 + r.damage * 0.012);
+                    }
                     s.invuln = 45;
                     if (g.shield <= 0) {
                         g.lives -= 1;
@@ -274,9 +412,8 @@ export default function Asteroids({
                         s.y = g.field.y + g.field.h / 2;
                         s.vx = s.vy = 0;
                         g.particles.push(...burst(s.x, s.y, AMBER, 40));
-                        g.shake = 22;
-                        g.flash = 1;
-                        if (g.lives <= 0) { g.status = "gameover"; setOver(true); }
+                        if (!g.calm) { g.shake = 22; g.flash = 1; }
+                        if (g.lives <= 0) { g.status = "gameover"; setDone("gameover"); }
                     }
                 }
 
@@ -295,21 +432,29 @@ export default function Asteroids({
                         floater(g.field.x + g.field.w / 2, g.field.y + g.field.h / 2 + 26, `+${bonus}`, AMBER)
                     );
 
+                    g.saucer = null;
+                    g.enemyBullets.length = 0;
+                    g.saucerIn = SAUCER_MIN_GAP;
+
                     let next: string | null = null;
+                    let levelUp: number | undefined;
                     if (g.pending.length > 0) {
                         next = g.pending.shift()!;
                     } else if (g.level < LEVELS.length) {
                         g.level += 1;
+                        levelUp = g.level;
                         g.pending = shuffle(LEVELS[g.level - 1]);
                         next = g.pending.shift()!;
+                        g.lives += 1; // surviving a whole column earns a ship
                     }
 
                     g.banner = {
                         cleared: g.cleared[g.cleared.length - 1] ?? "",
-                        next, bonus, t: CLEAR_FRAMES,
+                        next, bonus, t: CLEAR_FRAMES, levelUp,
                     };
-                    g.status = next ? "clearing" : "gameover";
-                    if (!next) setOver(true);
+                    // Clearing the last panel of the last level is a win, not a loss.
+                    g.status = next ? "clearing" : "victory";
+                    if (!next) setDone("victory");
                 }
             } else if (g.status === "clearing" && g.banner) {
                 // Hold on the banner so the field growth is legible, then absorb.
@@ -386,6 +531,34 @@ export default function Asteroids({
             ctx.fillStyle = AMBER;
             for (const b of g.bullets) ctx.fillRect(b.x - 1.5, b.y - 1.5, 3, 3);
 
+            ctx.fillStyle = "#ef4444";
+            for (const b of g.enemyBullets) ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+
+            if (g.saucer) {
+                const sc = g.saucer;
+                const w = sc.small ? 9 : 14;
+                ctx.save();
+                ctx.translate(sc.x, sc.y);
+                ctx.strokeStyle = sc.small ? "#ef4444" : AMBER;
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.moveTo(-w, 0); ctx.lineTo(-w * 0.45, -w * 0.42);
+                ctx.lineTo(w * 0.45, -w * 0.42); ctx.lineTo(w, 0);
+                ctx.lineTo(w * 0.45, w * 0.38); ctx.lineTo(-w * 0.45, w * 0.38);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.45, -w * 0.42);
+                ctx.lineTo(-w * 0.2, -w * 0.8);
+                ctx.lineTo(w * 0.2, -w * 0.8);
+                ctx.lineTo(w * 0.45, -w * 0.42);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(-w, 0); ctx.lineTo(w, 0);
+                ctx.stroke();
+                ctx.restore();
+            }
+
             for (const p of g.particles) {
                 ctx.globalAlpha = Math.max(0, p.life / p.max);
                 ctx.fillStyle = p.color;
@@ -393,7 +566,8 @@ export default function Asteroids({
             }
             ctx.globalAlpha = 1;
 
-            if (g.status !== "gameover" && (s.invuln <= 0 || Math.floor(now / 90) % 2 === 0)) {
+            if (g.status !== "gameover" && g.status !== "victory" &&
+                (s.invuln <= 0 || Math.floor(now / 90) % 2 === 0)) {
                 ctx.save();
                 ctx.translate(s.x, s.y);
                 ctx.rotate(s.angle + Math.PI / 2);
@@ -442,12 +616,24 @@ export default function Asteroids({
                 ctx.lineWidth = 1;
                 ctx.strokeRect(f.x + 0.5, cy - 33.5, f.w - 1, 67);
                 ctx.fillStyle = AMBER;
-                ctx.font = "bold 14px monospace";
-                ctx.fillText(`${g.banner.cleared} CLEARED`, cx, cy - 14);
-                ctx.font = "11px monospace";
-                ctx.fillStyle = "rgba(255,149,0,0.7)";
-                ctx.fillText(`BONUS +${g.banner.bonus}`, cx, cy + 4);
+                if (g.banner.levelUp) {
+                    ctx.font = "bold 16px monospace";
+                    ctx.fillText(
+                        `LEVEL ${g.banner.levelUp} — ${tuningFor(g.banner.levelUp).label}`,
+                        cx, cy - 16
+                    );
+                    ctx.font = "11px monospace";
+                    ctx.fillStyle = "#22c55e";
+                    ctx.fillText("+1 SHIP", cx, cy + 2);
+                } else {
+                    ctx.font = "bold 14px monospace";
+                    ctx.fillText(`${g.banner.cleared} CLEARED`, cx, cy - 14);
+                    ctx.font = "11px monospace";
+                    ctx.fillStyle = "rgba(255,149,0,0.7)";
+                    ctx.fillText(`BONUS +${g.banner.bonus}`, cx, cy + 4);
+                }
                 if (g.banner.next) {
+                    ctx.font = "11px monospace";
                     ctx.fillStyle = "rgba(255,149,0,0.5)";
                     ctx.fillText(`BREACHING ${g.banner.next}…`, cx, cy + 20);
                 }
@@ -465,6 +651,7 @@ export default function Asteroids({
                     score: g.score, lives: g.lives, shield: g.shield, level: g.level,
                     panelsDone: Math.max(0, Math.min(total, doneThisLevel)), panelsTotal: total,
                 });
+                setPaused(g.paused);
             }
 
             rafRef.current = requestAnimationFrame(frame);
@@ -519,21 +706,27 @@ export default function Asteroids({
 
             <div className="absolute bottom-3 left-0 right-0 text-center text-[9px] opacity-40 pointer-events-none"
                 style={{ fontFamily: "monospace", color: AMBER }}>
-                ← → ROTATE · ↑ THRUST · SPACE FIRE · [ESC] QUIT
+                ← → ROTATE · ↑ THRUST · SPACE FIRE · SHIFT HYPERSPACE · P PAUSE · [ESC] QUIT
             </div>
 
-            {over && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center px-6 py-5 border border-amber-500/40 bg-black/80"
-                        style={{ fontFamily: "monospace", color: AMBER }}>
-                        <div className="text-lg font-bold tracking-widest mb-1">GAME OVER</div>
-                        <div className="text-[11px] opacity-70 mb-4">SCORE {hud.score}</div>
-                        <button onClick={onExit}
-                            className="text-[10px] tracking-wider px-3 py-1 border border-amber-500/40 hover:bg-amber-500/15 cursor-pointer">
-                            [ESC] RETURN
-                        </button>
+            {paused && !done && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="px-5 py-3 border bg-black/80 text-center"
+                        style={{ fontFamily: "monospace", color: AMBER, borderColor: "rgba(255,149,0,0.4)" }}>
+                        <div className="text-sm font-bold tracking-widest">PAUSED</div>
+                        <div className="text-[9px] opacity-60 mt-1">PRESS P TO RESUME</div>
                     </div>
                 </div>
+            )}
+
+            {done && (
+                <EndScreen
+                    outcome={done}
+                    score={hud.score}
+                    level={hud.level}
+                    onRestart={() => { setDone(null); setRun((n) => n + 1); }}
+                    onExit={onExit}
+                />
             )}
         </div>
     );

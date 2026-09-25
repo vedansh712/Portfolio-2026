@@ -6,11 +6,13 @@ import {
     CLEAR_FRAMES, CLEAR_BONUS_PER_SHIELD, tuningFor,
     SAUCER_MIN_GAP, SAUCER_MAX_GAP, HYPER_COOLDOWN, HYPER_RISK,
     spawnSaucer, stepSaucer, saucerShot, saucerScore, MAX_ROCKS, rescaleField,
+    isMobileLayout, levelsFor, mobileField,
     harvestPanel, spawnGreen, split, scoreFor, stepRock, wrap, hits, burst, floater,
     shuffle, unionRect, rectOf,
     type Game, type Rock, type Rect,
 } from "./core";
 import { EndScreen } from "./EndScreen";
+import { TouchControls } from "./TouchControls";
 
 /* ══════════════════════════════════════════════════════════
    SPRITES — text is rasterised once, then blitted each frame.
@@ -48,6 +50,8 @@ export default function Asteroids({
     const [done, setDone] = useState<null | "gameover" | "victory">(null);
     const [run, setRun] = useState(0);
     const [paused, setPaused] = useState(false);
+    const mobileRef = useRef(false);
+    const levelsRef = useRef<string[][]>(LEVELS);
     const exitRef = useRef(onExit);
     useEffect(() => { exitRef.current = onExit; }, [onExit]);
 
@@ -65,8 +69,16 @@ export default function Asteroids({
         const panel = document.querySelector<HTMLElement>(`[data-panel="${panelName}"]`);
         if (!panel) return;
         const tune = tuningFor(g.level);
+
+        if (mobileRef.current) {
+            // Panels live far down a scrolling stack, so bring this one on
+            // screen before measuring it — harvest reads viewport coordinates.
+            panel.scrollIntoView({ block: "center", behavior: "auto" });
+            g.field = mobileField();
+        }
+
         g.rocks.push(...harvestPanel(panel, tune.speed, tune.seek, tune.seekShare));
-        g.field = unionRect(g.field, rectOf(panel));
+        if (!mobileRef.current) g.field = unionRect(g.field, rectOf(panel));
 
         const body = panel.querySelector<HTMLElement>("[data-panel-body]");
         const header = panel.querySelector<HTMLElement>("[data-panel-header]");
@@ -93,7 +105,11 @@ export default function Asteroids({
         const startPanel = document.querySelector<HTMLElement>('[data-panel="ACTIVITY"]');
         if (!startPanel) { exitRef.current(); return; }
 
-        const field = rectOf(startPanel);
+        const mobile = isMobileLayout();
+        mobileRef.current = mobile;
+        levelsRef.current = levelsFor(mobile);
+        if (mobile) startPanel.scrollIntoView({ block: "center", behavior: "auto" });
+        const field = mobile ? mobileField() : rectOf(startPanel);
         const g: Game = {
             status: "playing",
             field,
@@ -118,8 +134,8 @@ export default function Asteroids({
         if (process.env.NODE_ENV !== "production") {
             (window as unknown as { __feed?: Game }).__feed = g;
         }
-        // Level 1 always opens on ACTIVITY; the rest of the column is shuffled.
-        const [first, ...rest] = LEVELS[0];
+        // Level 1 always opens on ACTIVITY; the rest of the group is shuffled.
+        const [first, ...rest] = levelsRef.current[0];
         g.pending = shuffle(rest);
         consume(first, g);
         g.cleared.push(first);
@@ -130,6 +146,56 @@ export default function Asteroids({
         };
     }, [active, consume, restore, run]);
 
+    /* ── hyperspace, shared by the Shift key and the touch button ── */
+    const hyperspace = useCallback(() => {
+        const g = gameRef.current;
+        if (!g || g.status !== "playing" || g.hyperIn > 0) return;
+        g.hyperIn = HYPER_COOLDOWN;
+        g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
+        g.ship.x = g.field.x + 20 + Math.random() * Math.max(1, g.field.w - 40);
+        g.ship.y = g.field.y + 20 + Math.random() * Math.max(1, g.field.h - 40);
+        g.ship.vx = g.ship.vy = 0;
+        if (Math.random() < HYPER_RISK) {
+            g.lives -= 1;
+            g.shield = MAX_SHIELD;
+            g.ship.invuln = 110;
+            g.particles.push(...burst(g.ship.x, g.ship.y, "#ef4444", 34));
+            g.floaters.push(floater(g.ship.x, g.ship.y - 14, "MISJUMP", "#ef4444"));
+            if (!g.calm) { g.shake = 20; g.flash = 1; }
+            if (g.lives <= 0) { g.status = "gameover"; setDone("gameover"); }
+        } else {
+            g.ship.invuln = Math.max(g.ship.invuln, 30);
+            g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
+        }
+    }, []);
+
+    const holdKey = useCallback((key: string, down: boolean) => {
+        keysRef.current[key] = down;
+    }, []);
+
+    const togglePause = useCallback(() => {
+        const g = gameRef.current;
+        if (g) { g.paused = !g.paused; setPaused(g.paused); }
+    }, []);
+
+    /* ── scroll lock while playing ── */
+    useEffect(() => {
+        if (!active) return;
+        const block = (e: TouchEvent) => {
+            // Controls opt out via touch-action; everything else must not scroll
+            // the page out from under a frozen playfield.
+            if ((e.target as HTMLElement | null)?.closest("[data-touch-ui]")) return;
+            e.preventDefault();
+        };
+        const prevOverscroll = document.documentElement.style.overscrollBehavior;
+        document.documentElement.style.overscrollBehavior = "none";
+        window.addEventListener("touchmove", block, { passive: false });
+        return () => {
+            window.removeEventListener("touchmove", block);
+            document.documentElement.style.overscrollBehavior = prevOverscroll;
+        };
+    }, [active]);
+
     /* ── input ── */
     useEffect(() => {
         if (!active) return;
@@ -137,27 +203,7 @@ export default function Asteroids({
             const g = gameRef.current;
             if (e.key === "Escape") { exitRef.current(); return; }
             if ((e.key === "p" || e.key === "P") && g) { g.paused = !g.paused; return; }
-            if (e.key === "Shift" && g && g.status === "playing" && g.hyperIn <= 0) {
-                // Hyperspace: escape anywhere, at the cabinet's price.
-                g.hyperIn = HYPER_COOLDOWN;
-                g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
-                g.ship.x = g.field.x + 20 + Math.random() * Math.max(1, g.field.w - 40);
-                g.ship.y = g.field.y + 20 + Math.random() * Math.max(1, g.field.h - 40);
-                g.ship.vx = g.ship.vy = 0;
-                if (Math.random() < HYPER_RISK) {
-                    g.lives -= 1;
-                    g.shield = MAX_SHIELD;
-                    g.ship.invuln = 110;
-                    g.particles.push(...burst(g.ship.x, g.ship.y, "#ef4444", 34));
-                    g.floaters.push(floater(g.ship.x, g.ship.y - 14, "MISJUMP", "#ef4444"));
-                    if (!g.calm) { g.shake = 20; g.flash = 1; }
-                    if (g.lives <= 0) { g.status = "gameover"; setDone("gameover"); }
-                } else {
-                    g.ship.invuln = Math.max(g.ship.invuln, 30);
-                    g.particles.push(...burst(g.ship.x, g.ship.y, AMBER, 16));
-                }
-                return;
-            }
+            if (e.key === "Shift") { hyperspace(); return; }
             const k = e.key;
             if ([" ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) e.preventDefault();
             keysRef.current[k] = true;
@@ -170,7 +216,7 @@ export default function Asteroids({
             window.removeEventListener("keyup", up);
             keysRef.current = {};
         };
-    }, [active]);
+    }, [active, hyperspace]);
 
     /* ── loop ── */
     useEffect(() => {
@@ -192,6 +238,7 @@ export default function Asteroids({
             // the panels we have taken and carry the debris across with it.
             const g = gameRef.current;
             if (!g || g.cleared.length === 0) return;
+            if (mobileRef.current) { rescaleField(g, mobileField()); return; }
             let next: Rect | null = null;
             for (const name of g.cleared) {
                 const el = document.querySelector<HTMLElement>(`[data-panel="${name}"]`);
@@ -440,10 +487,10 @@ export default function Asteroids({
                     let levelUp: number | undefined;
                     if (g.pending.length > 0) {
                         next = g.pending.shift()!;
-                    } else if (g.level < LEVELS.length) {
+                    } else if (g.level < levelsRef.current.length) {
                         g.level += 1;
                         levelUp = g.level;
-                        g.pending = shuffle(LEVELS[g.level - 1]);
+                        g.pending = shuffle(levelsRef.current[g.level - 1]);
                         next = g.pending.shift()!;
                         g.lives += 1; // surviving a whole column earns a ship
                     }
@@ -645,7 +692,7 @@ export default function Asteroids({
             hudTick -= dt;
             if (hudTick <= 0) {
                 hudTick = 6;
-                const total = LEVELS[g.level - 1]?.length ?? 0;
+                const total = levelsRef.current[g.level - 1]?.length ?? 0;
                 const doneThisLevel = total - g.pending.length - (g.status === "clearing" ? 0 : 0);
                 setHud({
                     score: g.score, lives: g.lives, shield: g.shield, level: g.level,
@@ -708,6 +755,12 @@ export default function Asteroids({
                 style={{ fontFamily: "monospace", color: AMBER }}>
                 ← → ROTATE · ↑ THRUST · SPACE FIRE · SHIFT HYPERSPACE · P PAUSE · [ESC] QUIT
             </div>
+
+            {!done && (
+                <div data-touch-ui="">
+                    <TouchControls onHold={holdKey} onHyper={hyperspace} onPause={togglePause} />
+                </div>
+            )}
 
             {paused && !done && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

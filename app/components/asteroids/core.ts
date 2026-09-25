@@ -154,6 +154,38 @@ export const LEVELS: string[][] = [
     ["ABOUT", "EXPERIENCE"],
 ];
 
+/**
+ * Below the md breakpoint the three-column grid collapses into one scrolling
+ * stack ~1650px tall, so "absorb a column" has no meaning and panels sit far
+ * outside the viewport. Mobile instead takes one panel at a time down the
+ * stack, scrolling each into view, and plays in a fixed viewport-sized field.
+ */
+export const LEVELS_MOBILE: string[][] = [
+    ["ACTIVITY", "PERSONAL"],
+    ["CONTACT", "PROJECTS"],
+    ["SKILLS", "EXPERIENCE", "ABOUT"],
+];
+
+export function isMobileLayout(): boolean {
+    return typeof window !== "undefined" && window.innerWidth < 768;
+}
+
+export function levelsFor(mobile: boolean): string[][] {
+    return mobile ? LEVELS_MOBILE : LEVELS;
+}
+
+/** Playfield on mobile: the viewport, inset for the HUD and the thumb controls. */
+export function mobileField(): Rect {
+    const topInset = 34;
+    const bottomInset = 116;
+    return {
+        x: 6,
+        y: topInset,
+        w: Math.max(40, window.innerWidth - 12),
+        h: Math.max(60, window.innerHeight - topInset - bottomInset),
+    };
+}
+
 let nextId = 1;
 
 /* ══════════════════════════════════════════════════════════
